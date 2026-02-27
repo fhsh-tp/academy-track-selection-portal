@@ -89,8 +89,16 @@ async def get_all_data(user: dict = Depends(get_current_user)):
 async def read_index():
     return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
 
-@app.get("/{file_name}")
-async def serve_file(file_name: str):
-    return FileResponse(os.path.join(BASE_DIR, "frontend", file_name))
+@app.get("/login")
+async def read_login():
+    return FileResponse(os.path.join(BASE_DIR, "frontend", "login.html"))
+
+@app.get("/choose")
+async def read_choose():
+    return FileResponse(os.path.join(BASE_DIR, "frontend", "choose.html"))
+
+@app.get("/admin")
+async def read_admin():
+    return FileResponse(os.path.join(BASE_DIR, "frontend", "admin.html"))
 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
