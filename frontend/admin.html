@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>管理員後台</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div class="container wide">
@@ -27,7 +28,14 @@
 
     <script src="/static/config.js"></script>
     <script>
-        // 1. 頁面載入時檢查是否已登入
+        // 對照表放在這裡，全域可讀
+        const groupMap = {
+            1: "一類組(數A)",
+            2: "一類組(數B)",
+            3: "二類組(理工)",
+            4: "三類組(生醫農)"
+        };
+
         window.onload = () => {
             if (!localStorage.getItem('jwt_token')) {
                 window.location.href = '/login';
@@ -39,21 +47,33 @@
             const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
                 headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
             });
+            
             if (res.status === 401 || res.status === 403) {
-                alert("權限不足或已登出");
-                window.location.href = '/login';
+                Swal.fire({ icon: 'error', title: '權限不足', text: '請重新登入' }).then(() => {
+                    window.location.href = '/login';
+                });
                 return;
             }
+            
             const data = await res.json();
             const tbody = document.querySelector('#data-table tbody');
-            tbody.innerHTML = data.map(row => 
-                `<tr><td>${row.student_id}</td><td>${row.name}</td><td>${row.choice || '未選'}</td><td>${row.updated_at || '-'}</td></tr>`
-            ).join('');
+            
+            // 這裡直接整合對照表邏輯
+            tbody.innerHTML = data.map(row => {
+                const groupName = groupMap[row.choice] || '未選'; // 用 row.choice 對應 groupMap
+                return `<tr>
+                    <td>${row.student_id}</td>
+                    <td>${row.name}</td>
+                    <td>${groupName}</td>
+                    <td>${row.updated_at || '-'}</td>
+                </tr>`;
+            }).join('');
         }
 
         async function changePassword() {
             const oldP = document.getElementById('oldPwd').value;
             const newP = document.getElementById('newPwd').value;
+            
             const res = await fetch(`${CONFIG.API_BASE_URL}/change-password`, {
                 method: 'POST',
                 headers: {
@@ -64,9 +84,9 @@
             });
             
             if (res.ok) {
-                alert("密碼修改成功！");
+                Swal.fire({ icon: 'success', title: '修改成功' });
             } else {
-                alert("修改失敗，請檢查舊密碼。");
+                Swal.fire({ icon: 'error', title: '修改失敗', text: '請檢查舊密碼是否正確' });
             }
         }
 
