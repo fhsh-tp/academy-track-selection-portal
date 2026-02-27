@@ -128,3 +128,25 @@ th {
 tr:hover {
     background-color: #fcfcfc;
 }
+
+/* 右上角小按鈕樣式 */
+.admin-btn-small {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    background-color: #6c757d; /* 灰色系，不搶戲 */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.5; /* 預設半透明，滑鼠移上去才變清楚 */
+    transition: opacity 0.3s;
+    z-index: 1000; /* 確保它在最上層 */
+}
+
+.admin-btn-small:hover {
+    opacity: 1;
+    background-color: #333;
+}

@@ -6,16 +6,18 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <button class="admin-btn-small" onclick="window.location.href='/admin-login'">管理員入口</button>
+
     <div class="container main-card">
         <h1>114 學年度</h1>
         <h2>高一升高二選類組作業</h2>
+        
         <div class="info-box">
             <p><strong>截止日期：</strong> 2026年3月10日 23:59</p>
             <p>※ 逾期未填寫者，將由校方代為編配，請務必準時完成。</p>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <button class="btn-primary" onclick="window.location.href='/login'">學生登入</button>
-                <button class="btn-secondary" onclick="window.location.href='/admin-login'" style="background-color: #555;">管理員入口</button>
-            </div>
+        </div>
+
+        <button class="btn-primary" onclick="window.location.href='/login'">開始登入</button>
     </div>
 </body>
 </html>
