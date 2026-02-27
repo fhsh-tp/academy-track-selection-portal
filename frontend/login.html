@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>身分驗證 - 選類組系統</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container login-box">
@@ -14,13 +14,14 @@
         <p id="error" style="color:red;"></p>
     </div>
 
-    <script src="config.js"></script>
+    <script src="/static/config.js"></script>
     <script>
         async function doLogin() {
             const sid = document.getElementById('sid').value;
             const pwd = document.getElementById('pwd').value;
             
             try {
+                // 確保 config.js 載入後 CONFIG 變數才能使用
                 const res = await fetch(`${CONFIG.API_BASE_URL}/login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -31,7 +32,7 @@
                 if (res.ok) {
                     localStorage.setItem('jwt_token', data.access_token);
                     localStorage.setItem('user_role', data.role);
-                    // 根據角色導向不同頁面
+                    // 正確導向到路由
                     window.location.href = data.role === 'admin' ? '/admin' : '/choose';
                 } else {
                     document.getElementById('error').innerText = data.detail;

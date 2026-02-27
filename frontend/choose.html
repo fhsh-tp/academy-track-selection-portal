@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>選填志願</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
@@ -19,12 +19,13 @@
         <p id="msg"></p>
     </div>
 
-    <script src="config.js"></script>
+    <script src="/static/config.js"></script>
     <script>
         let selectedValue = null;
         window.onload = async () => {
             const token = localStorage.getItem('jwt_token');
-            if (!token) { window.location.href = 'login.html'; return; }
+            // 修正：跳轉到路由 /login 而不是檔案 login.html
+            if (!token) { window.location.href = '/login'; return; }
             const payload = JSON.parse(atob(token.split('.')[1]));
             document.getElementById('display-sid').innerText = payload.sub;
         };
