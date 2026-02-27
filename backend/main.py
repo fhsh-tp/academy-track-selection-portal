@@ -35,6 +35,11 @@ class LoginData(BaseModel):
 class SelectionData(BaseModel):
     choice: int
 
+#管理員改密碼
+class PasswordChangeData(BaseModel):
+    old_password: str
+    new_password: str
+
 @app.on_event("startup")
 async def startup():
     init_db()
@@ -82,6 +87,30 @@ async def get_all_data(user: dict = Depends(get_current_user)):
     cur.close()
     conn.close()
     return res
+
+@app.post("/change-password")
+async def change_password(data: PasswordChangeData, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # 1. 取得現有使用者資料
+    cur.execute("SELECT password FROM users WHERE student_id = %s", (user['student_id'],))
+    db_user = cur.fetchone()
+    
+    # 2. 驗證舊密碼是否正確
+    if not db_user or not verify_password(data.old_password, db_user['password']):
+        cur.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="舊密碼錯誤")
+    
+    # 3. 加密新密碼並更新
+    new_hash = get_password_hash(data.new_password)
+    cur.execute("UPDATE users SET password = %s WHERE student_id = %s", (new_hash, user['student_id']))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": "密碼修改成功"}
 
 # --- 靜態檔案路由 (一定要放在最後) ---
 

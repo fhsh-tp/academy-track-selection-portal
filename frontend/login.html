@@ -32,7 +32,7 @@
                     localStorage.setItem('jwt_token', data.access_token);
                     localStorage.setItem('user_role', data.role);
                     // 根據角色導向不同頁面
-                    window.location.href = data.role === 'admin' ? 'admin.html' : 'choose.html';
+                    window.location.href = data.role === 'admin' ? '/admin' : '/choose';
                 } else {
                     document.getElementById('error').innerText = data.detail;
                 }

@@ -1,21 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>管理員後台</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
 <body>
-    <h2>管理員列表</h2>
-    <table border="1" id="data-table">
-        <thead><tr><th>學號</th><th>姓名</th><th>類組</th><th>時間</th></tr></thead>
-        <tbody></tbody>
-    </table>
-    <script src="config.js"></script>
+    <div class="container wide">
+        <h2>管理員後台</h2>
+        <button onclick="logout()" style="background-color: #d93025; margin-bottom: 20px;">登出系統</button>
+        
+        <table border="1" id="data-table" style="width:100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+                <tr><th>學號</th><th>姓名</th><th>類組</th><th>更新時間</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <hr>
+
+        <h3>修改管理員密碼</h3>
+        <input type="password" id="oldPwd" placeholder="輸入舊密碼" class="input-field">
+        <input type="password" id="newPwd" placeholder="輸入新密碼" class="input-field">
+        <button onclick="changePassword()" class="btn-primary">確認修改</button>
+    </div>
+
+    <script src="/static/config.js"></script>
     <script>
-        fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
-            headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
-        }).then(r => r.json()).then(data => {
-            const tbody = document.querySelector('#data-table tbody');
-            data.forEach(row => {
-                tbody.innerHTML += `<tr><td>${row.student_id}</td><td>${row.name}</td><td>${row.choice || '未選'}</td><td>${row.updated_at || '-'}</td></tr>`;
+        // 1. 頁面載入時檢查是否已登入
+        window.onload = () => {
+            if (!localStorage.getItem('jwt_token')) {
+                window.location.href = '/login';
+            }
+            loadData();
+        };
+
+        async function loadData() {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
+                headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
             });
-        });
+            if (res.status === 401 || res.status === 403) {
+                alert("權限不足或已登出");
+                window.location.href = '/login';
+                return;
+            }
+            const data = await res.json();
+            const tbody = document.querySelector('#data-table tbody');
+            tbody.innerHTML = data.map(row => 
+                `<tr><td>${row.student_id}</td><td>${row.name}</td><td>${row.choice || '未選'}</td><td>${row.updated_at || '-'}</td></tr>`
+            ).join('');
+        }
+
+        async function changePassword() {
+            const oldP = document.getElementById('oldPwd').value;
+            const newP = document.getElementById('newPwd').value;
+            const res = await fetch(`${CONFIG.API_BASE_URL}/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+                },
+                body: JSON.stringify({ old_password: oldP, new_password: newP })
+            });
+            
+            if (res.ok) {
+                alert("密碼修改成功！");
+            } else {
+                alert("修改失敗，請檢查舊密碼。");
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
     </script>
 </body>
 </html>
