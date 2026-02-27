@@ -44,6 +44,11 @@ class PasswordChangeData(BaseModel):
 async def startup():
     init_db()
 
+#避免RENDER在15分鐘內沒人訪問而休眠
+@app.get("/ping")
+async def ping():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 # --- API 路由 ---
 
 @app.post("/login")
