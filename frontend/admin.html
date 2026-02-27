@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>管理員列表</h2>
+    <table border="1" id="data-table">
+        <thead><tr><th>學號</th><th>姓名</th><th>類組</th><th>時間</th></tr></thead>
+        <tbody></tbody>
+    </table>
+    <script src="config.js"></script>
+    <script>
+        fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
+            headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
+        }).then(r => r.json()).then(data => {
+            const tbody = document.querySelector('#data-table tbody');
+            data.forEach(row => {
+                tbody.innerHTML += `<tr><td>${row.student_id}</td><td>${row.name}</td><td>${row.choice || '未選'}</td><td>${row.updated_at || '-'}</td></tr>`;
+            });
+        });
+    </script>
+</body>
+</html>

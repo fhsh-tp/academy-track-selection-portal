@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>選填志願</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>類組選填</h2>
+        <p>學號：<span id="display-sid">載入中...</span></p>
+        <div class="options-container">
+            <div class="choice-box" id="opt1" onclick="selectType(1)"><h3>文法商 (數A)</h3></div>
+            <div class="choice-box" id="opt2" onclick="selectType(2)"><h3>文法商 (數B)</h3></div>
+            <div class="choice-box" id="opt3" onclick="selectType(3)"><h3>理工類組</h3></div>
+            <div class="choice-box" id="opt4" onclick="selectType(4)"><h3>生醫農類組</h3></div>
+        </div>
+        <button id="submitBtn" onclick="submitSelection()" class="btn-primary">確認提交志願</button>
+        <p id="msg"></p>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        let selectedValue = null;
+        window.onload = async () => {
+            const token = localStorage.getItem('jwt_token');
+            if (!token) { window.location.href = 'login.html'; return; }
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            document.getElementById('display-sid').innerText = payload.sub;
+        };
+
+        function selectType(val) {
+            selectedValue = val;
+            document.querySelectorAll('.choice-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('opt' + val).classList.add('active');
+        }
+
+        async function submitSelection() {
+            if (!selectedValue) return alert("請先選擇類組");
+            const token = localStorage.getItem('jwt_token');
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
+                    method: 'POST',
+                    headers: {'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json'},
+                    body: JSON.stringify({ choice: selectedValue })
+                });
+                if (res.ok) alert("成功");
+                else alert("失敗");
+            } catch (e) { alert("連線錯誤"); }
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
