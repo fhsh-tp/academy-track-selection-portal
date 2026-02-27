@@ -2,18 +2,17 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>身分驗證 - 選類組系統</title>
+    <title>學生登入 - 選類組系統</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div class="container login-box">
-        <h2>學生/管理員登入</h2>
+        <h2>學生登入</h2>
         <input type="text" id="sid" placeholder="學號 (如: 114001)" class="input-field">
         <input type="password" id="pwd" placeholder="密碼" class="input-field">
         <button id="loginBtn" onclick="doLogin()" class="btn-primary">確認登入</button>
-        <p id="error" style="color:red;"></p>
-    </div>
+        </div>
 
     <script src="/static/config.js"></script>
     <script>
@@ -21,8 +20,13 @@
             const sid = document.getElementById('sid').value;
             const pwd = document.getElementById('pwd').value;
             
+            // 前端簡易防呆
+            if (!sid || !pwd) {
+                Swal.fire({ icon: 'warning', title: '請填寫完整', text: '學號與密碼皆為必填' });
+                return;
+            }
+
             try {
-                // 確保 config.js 載入後 CONFIG 變數才能使用
                 const res = await fetch(`${CONFIG.API_BASE_URL}/login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -33,13 +37,27 @@
                 if (res.ok) {
                     localStorage.setItem('jwt_token', data.access_token);
                     localStorage.setItem('user_role', data.role);
-                    // 正確導向到路由
-                    window.location.href = data.role === 'admin' ? '/admin' : '/choose';
+                    
+                    // 成功時的彈窗
+                    Swal.fire({
+                        icon: 'success',
+                        title: '登入成功',
+                        text: '導向中...',
+                        showConfirmButton: false,
+                        timer: 1000
+                    }).then(() => {
+                        window.location.href = data.role === 'admin' ? '/admin' : '/choose';
+                    });
                 } else {
-                    document.getElementById('error').innerText = data.detail;
+                    // 登入失敗顯示
+                    Swal.fire({ 
+                        icon: 'error', 
+                        title: '登入失敗', 
+                        text: data.detail || '帳號或密碼錯誤' 
+                    });
                 }
             } catch (e) {
-                alert("伺服器連線失敗");
+                Swal.fire({ icon: 'error', title: '系統錯誤', text: '伺服器連線失敗，請稍後再試' });
             }
         }
     </script>
