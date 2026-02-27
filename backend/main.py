@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 
 # 確保這些模組在你的 backend 資料夾下
 from backend.database import init_db, save_choice, get_db
-from backend.security import verify_password, create_access_token, get_current_user
+from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
 app = FastAPI()
 
@@ -87,6 +87,10 @@ async def get_all_data(user: dict = Depends(get_current_user)):
     cur.close()
     conn.close()
     return res
+
+@app.get("/admin-login")
+async def read_admin_login():
+    return FileResponse(os.path.join(BASE_DIR, "frontend", "admin-login.html"))
 
 @app.post("/change-password")
 async def change_password(data: PasswordChangeData, user: dict = Depends(get_current_user)):

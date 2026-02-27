@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>管理員登入</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container login-box">
+        <h2>🔒 管理員後台登入</h2>
+        <input type="text" id="sid" placeholder="管理員帳號" class="input-field">
+        <input type="password" id="pwd" placeholder="密碼" class="input-field">
+        <button id="loginBtn" onclick="doAdminLogin()" class="btn-primary">進入管理後台</button>
+        <p id="error" style="color:red;"></p>
+    </div>
+
+    <script src="/static/config.js"></script>
+    <script>
+        async function doAdminLogin() {
+            // 這裡呼叫同一個 API 邏輯，但在前端給予不同體驗
+            const sid = document.getElementById('sid').value;
+            const pwd = document.getElementById('pwd').value;
+            
+            const res = await fetch(`${CONFIG.API_BASE_URL}/login`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ student_id: sid, password: pwd })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (data.role !== 'admin') {
+                    alert("權限錯誤：此入口僅限管理員使用");
+                    return;
+                }
+                localStorage.setItem('jwt_token', data.access_token);
+                localStorage.setItem('user_role', data.role);
+                window.location.href = '/admin';
+            } else {
+                document.getElementById('error').innerText = "帳號或密碼錯誤";
+            }
+        }
+    </script>
+</body>
+</html>
