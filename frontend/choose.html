@@ -36,10 +36,9 @@
                 return;
             }
 
-            // 加一個確認視窗，避免手滑
             const result = await Swal.fire({
                 title: '確認送出？',
-                text: "請再三檢查是否正確",
+                text: "請再三確認",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: '確定送出',
@@ -59,7 +58,13 @@
                     });
                     
                     if (res.ok) {
-                        Swal.fire({ icon: 'success', title: '送出成功', text: '已收到您的選填結果' });
+                        Swal.fire({ 
+                            icon: 'success', 
+                            title: '送出成功', 
+                            text: '您的選擇已記錄，將返回首頁' 
+                        }).then(() => {
+                            window.location.href = '/';
+                        });
                     } else {
                         const err = await res.json();
                         Swal.fire({ icon: 'error', title: '送出失敗', text: err.detail || '請洽管理員' });
