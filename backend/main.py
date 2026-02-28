@@ -44,12 +44,12 @@ class PasswordChangeData(BaseModel):
 async def startup():
     init_db()
 
-#避免RENDER在15分鐘內沒人訪問而休眠
+# --- API 路由 ---
+
+#避免網站過15分鐘後休眠
 @app.get("/ping")
 async def ping():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
-
-# --- API 路由 ---
+    return {"status": "ok"}
 
 @app.post("/login")
 async def login(data: LoginData):
@@ -123,7 +123,7 @@ async def change_password(data: PasswordChangeData, user: dict = Depends(get_cur
 
 # --- 靜態檔案路由 (一定要放在最後) ---
 
-@app.get("/")
+@app.get("/", methods=["GET", "HEAD"])
 async def read_index():
     return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
 
