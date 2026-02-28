@@ -123,7 +123,7 @@ async def change_password(data: PasswordChangeData, user: dict = Depends(get_cur
 
 # --- 靜態檔案路由 (一定要放在最後) ---
 
-@app.get("/", methods=["GET", "HEAD"])
+@app.api_route("/", methods=["GET", "HEAD"])
 async def read_index():
     return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
 
