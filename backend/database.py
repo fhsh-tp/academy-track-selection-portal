@@ -1,34 +1,38 @@
 import psycopg2
 from psycopg2 import pool
-from psycopg2.extras import RealDictCursor
 import os
 from datetime import datetime
 from backend.security import get_password_hash
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+# 使用全域變數存放池，但初始為 None
+db_pool = None
 
-# 初始化連線池
-# minconn=1: 最少保持 1 個連線
-# maxconn=20: 最多擴展到 20 個連線 (Render 免費版 Postgres 通常支援 20-50 連線，設 20 很安全)
-try:
-    db_pool = psycopg2.pool.ThreadedConnectionPool(1, 20, DATABASE_URL, sslmode='require')
-    print("✅ 資料庫連線池建立成功")
-except Exception as e:
-    print(f"❌ 資料庫連線池建立失敗: {e}")
+def init_db_pool():
+    global db_pool
+    if db_pool is None:
+        try:
+            print("正在建立資料庫連線池...")
+            # 限制 maxconn 為 15，避免超出免費版 Postgres 的連線限制
+            db_pool = psycopg2.pool.ThreadedConnectionPool(1, 15, DATABASE_URL, sslmode='require')
+            print("✅ 資料庫連線池建立成功")
+        except Exception as e:
+            print(f"❌ 資料庫連線池建立失敗: {e}")
+            raise e
 
 def get_db():
-    """從連線池取得一個連線"""
+    if db_pool is None:
+        init_db_pool()
     return db_pool.getconn()
 
 def release_db(conn):
-    """將連線歸還給連線池"""
-    db_pool.putconn(conn)
+    if db_pool:
+        db_pool.putconn(conn)
 
 def init_db():
     conn = get_db()
     try:
         cur = conn.cursor()
-        # 1. 建立學生帳號表
         cur.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 student_id TEXT PRIMARY KEY,
@@ -37,7 +41,6 @@ def init_db():
                 role TEXT DEFAULT 'student'
             )
         ''')
-        # 2. 建立志願紀錄表
         cur.execute('''
             CREATE TABLE IF NOT EXISTS selections (
                 student_id TEXT PRIMARY KEY REFERENCES users(student_id),
@@ -46,25 +49,19 @@ def init_db():
             )
         ''')
         
-        # 建立預設管理員與測試學生
+        # 建立預設帳號
         admin_pw = get_password_hash("FhCTF")
-        cur.execute('''
-            INSERT INTO users (student_id, name, password, role)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (student_id) DO NOTHING
-        ''', ("admin", "系統管理員", admin_pw, "admin"))
+        cur.execute("INSERT INTO users (student_id, name, password, role) VALUES (%s, %s, %s, %s) ON CONFLICT (student_id) DO NOTHING", 
+                    ("admin", "系統管理員", admin_pw, "admin"))
         
         test_student_pw = get_password_hash("123456")
-        cur.execute('''
-            INSERT INTO users (student_id, name, password, role)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (student_id) DO NOTHING
-        ''', ("114001", "測試同學", test_student_pw, "student"))
+        cur.execute("INSERT INTO users (student_id, name, password, role) VALUES (%s, %s, %s, %s) ON CONFLICT (student_id) DO NOTHING", 
+                    ("114001", "測試同學", test_student_pw, "student"))
         
         conn.commit()
         cur.close()
     finally:
-        release_db(conn) # 務必歸還！
+        release_db(conn)
     print("✅ 資料庫初始化完成。")
 
 def save_choice(student_id, choice):
@@ -80,21 +77,4 @@ def save_choice(student_id, choice):
         conn.commit()
         cur.close()
     finally:
-        release_db(conn) # 務必歸還！
-
-def import_students(student_list):
-    conn = get_db()
-    try:
-        cur = conn.cursor()
-        for student in student_list:
-            hashed_pw = get_password_hash(student['password'])
-            cur.execute('''
-                INSERT INTO users (student_id, name, password, role)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (student_id) DO NOTHING
-            ''', (student['id'], student['name'], hashed_pw, 'student'))
-        conn.commit()
-        cur.close()
-    finally:
         release_db(conn)
-    print(f"✅ 成功匯入 {len(student_list)} 名學生資料")

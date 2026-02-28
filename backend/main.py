@@ -1,25 +1,51 @@
 import os
 import asyncio
-import psycopg2
-import psycopg2.extras
+from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import psycopg2
+import psycopg2.extras
 
-# 確保這些模組在你的 backend 資料夾下
-from backend.database import init_db, save_choice, get_db, release_db
+# 導入你的後端模組
+from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
-app = FastAPI()
+# --- 啟動與關閉的生命週期管理 ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. 伺服器啟動時：初始化資料庫連線池與表格
+    print("🚀 伺服器啟動中...")
+    try:
+        init_db_pool() # 建立連線池 (不會在 import 時發生，現在才執行)
+        init_db()      # 初始化表格
+        print("✅ 資料庫系統準備就緒")
+    except Exception as e:
+        print(f"⚠️ 資料庫啟動失敗: {e}")
+    
+    yield  # 應用程式開始運行
+    
+    # 2. 伺服器關閉時 (若有需要)
+    print("🛑 伺服器關閉中...")
 
+app = FastAPI(lifespan=lifespan)
+
+# --- 設定 ---
 DEADLINE = datetime(2026, 3, 10, 23, 59, 59)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# --- Pydantic 模型 ---
 class LoginData(BaseModel):
     student_id: str
     password: str
@@ -31,10 +57,6 @@ class PasswordChangeData(BaseModel):
     old_password: str
     new_password: str
 
-@app.on_event("startup")
-async def startup():
-    init_db()
-
 # --- API 路由 ---
 
 @app.get("/ping")
@@ -43,7 +65,6 @@ async def ping():
 
 @app.post("/login")
 async def login(data: LoginData):
-    # 將資料庫操作丟到背景執行緒
     def db_logic():
         conn = get_db()
         try:
@@ -70,7 +91,6 @@ async def submit(data: SelectionData, user: dict = Depends(get_current_user)):
     if data.choice not in [1, 2, 3, 4]:
         raise HTTPException(status_code=400, detail="請選擇有效的類組")
     
-    # save_choice 本身可能需要改成 to_thread 包裝，或是直接用 await 執行
     await asyncio.to_thread(save_choice, user['student_id'], data.choice)
     return {"status": "success"}
 
