@@ -2,13 +2,14 @@ import os
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import psycopg2
 import psycopg2.extras
+from backend.mailer import send_confirmation_email
 
 # 導入你的後端模組
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
@@ -85,13 +86,33 @@ async def login(data: LoginData):
     return {"access_token": token, "role": user['role']}
 
 @app.post("/submit")
-async def submit(data: SelectionData, user: dict = Depends(get_current_user)):
+async def submit(
+    data: SelectionData, 
+    background_tasks: BackgroundTasks,  # 1. 注入 BackgroundTasks
+    user: dict = Depends(get_current_user)
+):
     if datetime.now() > DEADLINE:
         raise HTTPException(status_code=403, detail="選填時間已截止")
     if data.choice not in [1, 2, 3, 4]:
         raise HTTPException(status_code=400, detail="請選擇有效的類組")
     
+    # 執行資料庫寫入
     await asyncio.to_thread(save_choice, user['student_id'], data.choice)
+    
+    # 2. 將寄信任務加入排程
+    # 假設你的 user 物件裡有 email 欄位
+    user_email = user.get('email') 
+    
+    # 如果資料庫裡找不到 email，這裡給一個備用邏輯或檢查
+    if user_email:
+        background_tasks.add_task(
+            send_confirmation_email, 
+            recipient=user_email, 
+            choice=data.choice
+        )
+    else:
+        print(f"⚠️ 使用者 {user['student_id']} 沒有 Email，跳過寄信流程")
+        
     return {"status": "success"}
 
 @app.get("/admin/all")
