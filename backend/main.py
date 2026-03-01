@@ -171,4 +171,7 @@ async def read_login(): return FileResponse(os.path.join(BASE_DIR, "frontend", "
 async def read_choose(): return FileResponse(os.path.join(BASE_DIR, "frontend", "choose.html"))
 @app.get("/admin")
 async def read_admin(): return FileResponse(os.path.join(BASE_DIR, "frontend", "admin.html"))
+@app.get("/admin-login")
+async def read_admin_login(): 
+    return FileResponse(os.path.join(BASE_DIR, "frontend", "admin-login.html"))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
