@@ -8,3 +8,4 @@ python-dotenv
 aiosmtplib
 gunicorn
 resend
+apscheduler
