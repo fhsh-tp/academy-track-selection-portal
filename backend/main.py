@@ -35,7 +35,7 @@ app = FastAPI(lifespan=lifespan)
 
 # --- 設定 ---
 DEADLINE = datetime(2026, 3, 10, 23, 59, 59)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 app.add_middleware(
     CORSMiddleware,
