@@ -33,14 +33,21 @@ def init_db():
     conn = get_db()
     try:
         cur = conn.cursor()
+        
+        # 1. 建立 users 表 (加入 email 欄位)
         cur.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 student_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 password TEXT NOT NULL,
-                role TEXT DEFAULT 'student'
+                role TEXT DEFAULT 'student',
+                email TEXT  -- 新增這一行
             )
         ''')
+        
+        # 2. 如果欄位已經存在但沒加上去，這行 SQL 可以確保欄位存在
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;")
+
         cur.execute('''
             CREATE TABLE IF NOT EXISTS selections (
                 student_id TEXT PRIMARY KEY REFERENCES users(student_id),
@@ -49,14 +56,20 @@ def init_db():
             )
         ''')
         
-        # 建立預設帳號
+        # 3. 處理預設帳號 (你可以這裡順便給它們測試信箱)
         admin_pw = get_password_hash("FhCTF")
-        cur.execute("INSERT INTO users (student_id, name, password, role) VALUES (%s, %s, %s, %s) ON CONFLICT (student_id) DO NOTHING", 
-                    ("admin", "系統管理員", admin_pw, "admin"))
+        cur.execute("""
+            INSERT INTO users (student_id, name, password, role, email) 
+            VALUES (%s, %s, %s, %s, %s) 
+            ON CONFLICT (student_id) DO UPDATE SET email = EXCLUDED.email
+        """, ("admin", "系統管理員", admin_pw, "admin", "admin@school.edu"))
         
         test_student_pw = get_password_hash("123456")
-        cur.execute("INSERT INTO users (student_id, name, password, role) VALUES (%s, %s, %s, %s) ON CONFLICT (student_id) DO NOTHING", 
-                    ("114001", "測試同學", test_student_pw, "student"))
+        cur.execute("""
+            INSERT INTO users (student_id, name, password, role, email) 
+            VALUES (%s, %s, %s, %s, %s) 
+            ON CONFLICT (student_id) DO UPDATE SET email = EXCLUDED.email
+        """, ("114001", "測試同學", test_student_pw, "student", "你的真實信箱@gmail.com"))
         
         conn.commit()
         cur.close()
