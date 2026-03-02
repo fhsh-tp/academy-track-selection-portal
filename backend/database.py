@@ -34,20 +34,17 @@ def init_db():
     try:
         cur = conn.cursor()
         
-        # 1. 建立 users 表 (加入 email 欄位)
+        # 1. 建立表格結構
         cur.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 student_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 password TEXT NOT NULL,
                 role TEXT DEFAULT 'student',
-                email TEXT  -- 新增這一行
+                email TEXT
             )
         ''')
         
-        # 2. 如果欄位已經存在但沒加上去，這行 SQL 可以確保欄位存在
-        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;")
-
         cur.execute('''
             CREATE TABLE IF NOT EXISTS selections (
                 student_id TEXT PRIMARY KEY REFERENCES users(student_id),
@@ -56,26 +53,24 @@ def init_db():
             )
         ''')
         
-        # 3. 處理預設帳號 (你可以這裡順便給它們測試信箱)
-        admin_pw = get_password_hash("FhCTF")
-        cur.execute("""
-            INSERT INTO users (student_id, name, password, role, email) 
-            VALUES (%s, %s, %s, %s, %s) 
-            ON CONFLICT (student_id) DO UPDATE SET email = EXCLUDED.email
-        """, ("admin", "系統管理員", admin_pw, "admin", "admin@school.edu"))
-        
-        test_student_pw = get_password_hash("123456")
-        cur.execute("""
-            INSERT INTO users (student_id, name, password, role, email) 
-            VALUES (%s, %s, %s, %s, %s) 
-            ON CONFLICT (student_id) DO UPDATE SET email = EXCLUDED.email
-        """, ("114001", "測試同學", test_student_pw, "student", "C"))
+        # 2. 僅保留系統必要的管理員帳號
+        # 這屬於「系統設定」，所以放在這裡是合理的
+        raw_admin_pw = os.getenv("ADMIN_PASSWORD")
+        if not raw_admin_pw:
+            print("⚠️ 警告：未設定 ADMIN_PASSWORD 環境變數，管理員登入將失效")
+        else:
+            admin_pw = get_password_hash(raw_admin_pw)
+            cur.execute("""
+                INSERT INTO users (student_id, name, password, role, email) 
+                VALUES (%s, %s, %s, 'admin', 'admin@school.edu') 
+                ON CONFLICT (student_id) DO UPDATE SET password = EXCLUDED.password
+            """, ("admin", "系統管理員", admin_pw, "admin@school.edu"))
         
         conn.commit()
         cur.close()
+        print("✅ 資料庫結構初始化完成。")
     finally:
         release_db(conn)
-    print("✅ 資料庫初始化完成。")
 
 def save_choice(student_id, choice):
     conn = get_db()
