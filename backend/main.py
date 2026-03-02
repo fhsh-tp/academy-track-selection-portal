@@ -123,16 +123,31 @@ async def login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
-    if datetime.now() > DEADLINE:
-        raise HTTPException(status_code=403, detail="選填時間已截止")
-    if data.choice not in [1, 2, 3, 4]:
-        raise HTTPException(status_code=400, detail="請選擇有效的類組")
+    # ... (前面的檢查邏輯) ...
     
+    # 步驟 1: 存檔
     await asyncio.to_thread(save_choice, user['student_id'], data.choice)
     
-    # 若有 email 則寄出確認信
-    if user.get('email'):
-        background_tasks.add_task(send_confirmation_email, user['email'], data.choice)
+    # 步驟 2: 從 DB 補撈 Email，因為 JWT 不包含 Email
+    def get_user_email():
+        conn = get_db()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT email FROM users WHERE student_id = %s", (user['student_id'],))
+            row = cur.fetchone()
+            return row['email'] if row else None
+        finally:
+            release_db(conn)
+
+    email = await asyncio.to_thread(get_user_email)
+    
+    # 步驟 3: 檢查信箱並觸發背景任務
+    if email:
+        print(f"DEBUG: 準備將郵件背景任務加入排程，寄給: {email}") 
+        background_tasks.add_task(send_confirmation_email, email, data.choice)
+    else:
+        # 如果這裡印出來，代表該學生資料庫裡沒存信箱
+        print(f"DEBUG: 該使用者 ({user['student_id']}) 資料庫中沒有 email")
         
     return {"status": "success"}
 

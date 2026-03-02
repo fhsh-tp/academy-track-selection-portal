@@ -9,7 +9,11 @@
 <body>
     <div class="container wide">
         <h2>管理員後台</h2>
-        <button onclick="logout()" style="background-color: #d93025; margin-bottom: 20px;">登出系統</button>
+        
+        <div style="margin-bottom: 20px;">
+            <button onclick="logout()" style="background-color: #d93025; color: white; padding: 10px; border: none; cursor: pointer;">登出系統</button>
+            <button onclick="exportToCSV()" class="btn-primary" style="background-color: #0f9d58; padding: 10px; border: none; cursor: pointer;">匯出成 CSV</button>
+        </div>
         
         <table border="1" id="data-table" style="width:100%; border-collapse: collapse; margin-bottom: 30px;">
             <thead>
@@ -28,12 +32,11 @@
 
     <script src="/static/config.js"></script>
     <script>
-        // 對照表放在這裡，全域可讀
         const groupMap = {
             1: "一類組(數A)",
-            2: "一類組(數B)",
-            3: "二類組(理工)",
-            4: "三類組(生醫農)"
+            2: "二類組(理工)",
+            3: "三類組(生醫農)",
+            4: "一類組(數B)"
         };
 
         window.onload = () => {
@@ -58,9 +61,8 @@
             const data = await res.json();
             const tbody = document.querySelector('#data-table tbody');
             
-            // 這裡直接整合對照表邏輯
             tbody.innerHTML = data.map(row => {
-                const groupName = groupMap[row.choice] || '未選'; // 用 row.choice 對應 groupMap
+                const groupName = groupMap[row.choice] || '未選';
                 return `<tr>
                     <td>${row.student_id}</td>
                     <td>${row.name}</td>
@@ -68,6 +70,29 @@
                     <td>${row.updated_at || '-'}</td>
                 </tr>`;
             }).join('');
+        }
+
+        // 匯出 CSV 功能
+        async function exportToCSV() {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
+            });
+            const data = await res.json();
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "學號,姓名,類組,更新時間\n";
+
+            data.forEach(row => {
+                const groupName = groupMap[row.choice] || '未選';
+                csvContent += `${row.student_id},${row.name},${groupName},${row.updated_at || ''}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "選填資料.csv");
+            document.body.appendChild(link);
+            link.click();
         }
 
         async function changePassword() {
