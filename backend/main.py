@@ -151,6 +151,31 @@ async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: d
         
     return {"status": "success"}
 
+@app.post("/admin-login")
+async def admin_login(data: LoginData):
+    # 重用之前的 db_logic，或者直接呼叫邏輯
+    def db_logic():
+        conn = get_db()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
+            user = cur.fetchone()
+            cur.close()
+            return user
+        finally:
+            release_db(conn)
+            
+    user = await asyncio.to_thread(db_logic)
+    
+    # 這裡額外檢查：如果不是 admin 角色，拒絕登入
+    if not user or not verify_password(data.password, user['password']):
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    if user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="此入口僅限管理員")
+        
+    token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
+    return {"access_token": token, "role": user['role']}
+
 @app.get("/admin/all")
 async def get_all_data(user: dict = Depends(get_current_user)):
     if user['role'] != 'admin':
