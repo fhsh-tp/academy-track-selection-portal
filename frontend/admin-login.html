@@ -27,7 +27,7 @@
             }
 
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/login`, {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/admin-login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ student_id: sid, password: pwd })
