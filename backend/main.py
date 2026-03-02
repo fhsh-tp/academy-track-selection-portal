@@ -153,7 +153,6 @@ async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: d
 
 @app.post("/admin-login")
 async def admin_login(data: LoginData):
-    # 重用之前的 db_logic，或者直接呼叫邏輯
     def db_logic():
         conn = get_db()
         try:
@@ -167,11 +166,21 @@ async def admin_login(data: LoginData):
             
     user = await asyncio.to_thread(db_logic)
     
-    # 這裡額外檢查：如果不是 admin 角色，拒絕登入
-    if not user or not verify_password(data.password, user['password']):
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    # --- 這裡加入偵錯 ---
+    if not user:
+        print(f"DEBUG: 找不到該帳號: {data.student_id}")
+        raise HTTPException(status_code=401, detail="帳號不存在")
+        
+    is_password_correct = verify_password(data.password, user['password'])
+    if not is_password_correct:
+        print(f"DEBUG: 密碼比對失敗！輸入的密碼: '{data.password}' 與 DB 裡的 Hash 不符")
+        # 這裡會噴出 401
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
     if user['role'] != 'admin':
+        print(f"DEBUG: 角色權限不足: {user['role']}")
         raise HTTPException(status_code=403, detail="此入口僅限管理員")
+    # -------------------
         
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
