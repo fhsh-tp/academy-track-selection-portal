@@ -4,8 +4,10 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from dotenv import load_dotenv
 
 # --- 設定 ---
+load_dotenv()
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
