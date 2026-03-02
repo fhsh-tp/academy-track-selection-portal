@@ -5,38 +5,52 @@
     <title>管理員後台</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* 新增排版樣式 */
+        .top-left { position: absolute; top: 20px; left: 20px; }
+        .bottom-right { display: flex; justify-content: flex-end; margin-top: 30px; }
+        .password-box { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; width: 300px; }
+        .btn-logout { background-color: #d93025; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; }
+        .btn-export { background-color: #0f9d58; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+    </style>
 </head>
 <body>
+    <div class="top-left">
+        <button onclick="logout()" class="btn-logout">登出系統</button>
+    </div>
+
     <div class="container wide">
-        <h2>管理員後台</h2>
+        <h2 style="text-align: center;">管理員後台</h2>
         
-        <div style="margin-bottom: 20px;">
-            <button onclick="logout()" style="background-color: #d93025; color: white; padding: 10px; border: none; cursor: pointer;">登出系統</button>
-            <button onclick="exportToCSV()" class="btn-primary" style="background-color: #0f9d58; padding: 10px; border: none; cursor: pointer;">匯出成 CSV</button>
-        </div>
-        
-        <table border="1" id="data-table" style="width:100%; border-collapse: collapse; margin-bottom: 30px;">
+        <table border="1" id="data-table" style="width:100%; border-collapse: collapse;">
             <thead>
                 <tr><th>學號</th><th>姓名</th><th>類組</th><th>更新時間</th></tr>
             </thead>
             <tbody></tbody>
         </table>
 
-        <hr>
+        <div style="text-align: left;">
+            <button onclick="exportToCSV()" class="btn-export">匯出成 CSV</button>
+        </div>
 
-        <h3>修改管理員密碼</h3>
-        <input type="password" id="oldPwd" placeholder="輸入舊密碼" class="input-field">
-        <input type="password" id="newPwd" placeholder="輸入新密碼" class="input-field">
-        <button onclick="changePassword()" class="btn-primary">確認修改</button>
+        <div class="bottom-right">
+            <div class="password-box">
+                <h3 style="margin-top: 0;">修改管理員密碼</h3>
+                <input type="password" id="oldPwd" placeholder="輸入舊密碼" class="input-field" style="width: 100%; margin-bottom: 10px;">
+                <input type="password" id="newPwd" placeholder="輸入新密碼" class="input-field" style="width: 100%; margin-bottom: 10px;">
+                <button onclick="changePassword()" class="btn-primary" style="width: 100%;">確認修改</button>
+            </div>
+        </div>
     </div>
 
     <script src="/static/config.js"></script>
     <script>
+        // 修正後的類組對照表
         const groupMap = {
             1: "一類組(數A)",
-            2: "一類組(數B)",
-            3: "二類組(理工)",
-            4: "三類組(生醫農)"
+            2: "二類組(理工)",
+            3: "三類組(生醫農)",
+            4: "一類組(數B)"
         };
 
         window.onload = () => {
@@ -60,7 +74,6 @@
             
             const data = await res.json();
             const tbody = document.querySelector('#data-table tbody');
-            
             tbody.innerHTML = data.map(row => {
                 const groupName = groupMap[row.choice] || '未選';
                 return `<tr>
@@ -72,7 +85,6 @@
             }).join('');
         }
 
-        // 匯出 CSV 功能
         async function exportToCSV() {
             const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
@@ -81,7 +93,6 @@
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             csvContent += "學號,姓名,類組,更新時間\n";
-
             data.forEach(row => {
                 const groupName = groupMap[row.choice] || '未選';
                 csvContent += `${row.student_id},${row.name},${groupName},${row.updated_at || ''}\n`;
@@ -98,7 +109,6 @@
         async function changePassword() {
             const oldP = document.getElementById('oldPwd').value;
             const newP = document.getElementById('newPwd').value;
-            
             const res = await fetch(`${CONFIG.API_BASE_URL}/change-password`, {
                 method: 'POST',
                 headers: {
