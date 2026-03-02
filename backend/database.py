@@ -69,7 +69,7 @@ def init_db():
             INSERT INTO users (student_id, name, password, role, email) 
             VALUES (%s, %s, %s, %s, %s) 
             ON CONFLICT (student_id) DO UPDATE SET email = EXCLUDED.email
-        """, ("114001", "測試同學", test_student_pw, "student", "你的真實信箱@gmail.com"))
+        """, ("114001", "測試同學", test_student_pw, "student", "11430362@fhsh.tp.edu.tw"))
         
         conn.commit()
         cur.close()
