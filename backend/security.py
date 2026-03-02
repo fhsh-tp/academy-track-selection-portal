@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 # 設定
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-very-secret-key-12345")
+SECRET_KEY = os.environ.get("SECRET_KEY")
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
