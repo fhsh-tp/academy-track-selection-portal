@@ -1,6 +1,3 @@
-# 排除本地端的配置文件 (極度重要)
-config.js
-
 # 排除 Python 暫存檔
 __pycache__/
 *.pyc
