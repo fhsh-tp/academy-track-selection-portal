@@ -76,12 +76,15 @@ def save_choice(student_id, choice):
     conn = get_db()
     try:
         cur = conn.cursor()
-        cur.execute('''
-            INSERT INTO selections (student_id, choice, updated_at)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (student_id) DO UPDATE 
-            SET choice = EXCLUDED.choice, updated_at = EXCLUDED.updated_at
-        ''', (student_id, choice, datetime.now()))
+        cur.execute("""
+            INSERT INTO users (student_id, name, email, password, role)
+            VALUES (%s, %s, %s, %s, 'student')
+            ON CONFLICT (student_id) 
+            DO UPDATE SET 
+                name = EXCLUDED.name, 
+                email = EXCLUDED.email,
+                password = EXCLUDED.password
+        """, (sid, name, email, default_pw))
         conn.commit()
         cur.close()
     finally:
