@@ -166,10 +166,10 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     try:
         cur = conn.cursor()
         for row in reader:
-            sid, name, email = row['student_id'], row['name'], row['email']
-            default_pw = get_password_hash("default_password") 
+            # 修正點：從 CSV 讀取 password 欄位
+            raw_pw = row.get('password', 'default_password') 
+            hashed_pw = get_password_hash(raw_pw) 
             
-            # 關鍵修正：確保 ON CONFLICT 時也更新 password
             cur.execute("""
                 INSERT INTO users (student_id, name, email, password, role)
                 VALUES (%s, %s, %s, %s, 'student')
@@ -178,11 +178,11 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
                     name = EXCLUDED.name, 
                     email = EXCLUDED.email,
                     password = EXCLUDED.password
-            """, (sid, name, email, default_pw))
+            """, (row['student_id'], row['name'], row['email'], hashed_pw))
         
         conn.commit()
         cur.close()
-        return {"message": "匯入成功"}
+        return {"message": "匯入成功，密碼已依 CSV 設定"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")

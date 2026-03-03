@@ -21,13 +21,16 @@ def get_password_hash(password: str) -> str:
     return hashed.decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """驗證明文密碼是否與 Bcrypt 雜湊相符"""
     try:
         pwd_bytes = plain_password.encode('utf-8')
-        # 如果資料庫存的不是正確的雜湊格式，這裡可能會解碼失敗，故使用 try-except
         hash_bytes = hashed_password.encode('utf-8')
         return bcrypt.checkpw(pwd_bytes, hash_bytes)
-    except Exception:
+    except ValueError as e:
+        # 如果是 Bcrypt 格式錯誤，這裡會捕獲
+        print(f"DEBUG: 密碼雜湊格式錯誤: {e}")
+        return False
+    except Exception as e:
+        print(f"DEBUG: 驗證過程發生未預期錯誤: {e}")
         return False
 
 # --- JWT 驗證部分 ---
