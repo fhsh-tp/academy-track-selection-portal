@@ -19,25 +19,22 @@ from backend.database import init_db, init_db_pool, save_choice, get_db, release
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
 # --- 1. 全域設定 ---
+# 從環境變數讀取截止日期，若未設定則預設為 2026-04-30
+DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
+deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
+
 scheduler = AsyncIOScheduler()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # --- 2. 生命周期管理 ---
-# 修改 main.py 中的 lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        print("Starting up...")
-        scheduler.start()
-        init_db_pool()
-        init_db()
-        print("Startup complete.")
-    except Exception as e:
-        print(f"❌ 啟動失敗: {e}") # 強制將錯誤印出來
-        raise e  # 讓程式崩潰以便在 Log 中看到堆疊追蹤
-    
+    print("🚀 系統啟動中...")
+    scheduler.start()
+    init_db_pool()
+    init_db()
     yield
-    
+    print("🛑 系統關閉中...")
     try:
         if scheduler.running:
             scheduler.shutdown()
@@ -54,7 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 3. 模型與路由 ---
+# --- 3. 資料模型 ---
 class LoginData(BaseModel):
     student_id: str
     password: str
@@ -62,12 +59,11 @@ class LoginData(BaseModel):
 class SelectionData(BaseModel):
     choice: int
 
-class PasswordChangeData(BaseModel):
-    old_password: str
-    new_password: str
+# --- 4. API 路由 ---
 
 @app.get("/ping")
-async def ping(): return {"status": "ok"}
+async def ping(): 
+    return {"status": "ok"}
 
 @app.post("/login")
 async def login(data: LoginData):
@@ -77,38 +73,45 @@ async def login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             user = cur.fetchone()
-            cur.close()
             return user
         finally:
             release_db(conn)
     
     user = await asyncio.to_thread(db_logic)
     
-    # --- 這裡加入偵錯邏輯 ---
     if not user:
-        print(f"DEBUG: 找不到學號 {data.student_id}")
         raise HTTPException(status_code=401, detail="學號錯誤")
     
-    is_valid = verify_password(data.password, user['password'])
-    if not is_valid:
-        print(f"DEBUG: 密碼比對失敗，學號: {data.student_id}")
+    # 驗證密碼
+    if not verify_password(data.password, user['password']):
         raise HTTPException(status_code=401, detail="密碼錯誤")
-    # -----------------------
     
+    # 簽發 Token，sub 存放學號
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
-@app.post("/submit")
-async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
-    # 存檔至 selections 表
-    await asyncio.to_thread(save_choice, user['student_id'], data.choice)
+@app.post("/submit") 
+async def submit_choice(
+    data: SelectionData, 
+    background_tasks: BackgroundTasks, # 修正：補上 background_tasks
+    current_user: dict = Depends(get_current_user)
+):
+    # 檢查是否已過期
+    if datetime.now() > deadline_dt:
+        raise HTTPException(status_code=403, detail="選填期限已過")
     
-    # 取得 Email 寄確認信
+    # 修正：使用 current_user['sub'] 而非 user['student_id']
+    student_id = current_user['sub']
+    
+    # 存檔
+    await asyncio.to_thread(save_choice, student_id, data.choice)
+    
+    # 寄送確認信
     def get_user_email():
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT email FROM users WHERE student_id = %s", (user['student_id'],))
+            cur.execute("SELECT email FROM users WHERE student_id = %s", (student_id,))
             row = cur.fetchone()
             return row['email'] if row else None
         finally:
@@ -120,32 +123,6 @@ async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: d
         
     return {"status": "success"}
 
-@app.post("/admin-login")
-async def admin_login(data: LoginData):
-    # 執行管理員身分驗證
-    def db_logic():
-        conn = get_db()
-        try:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            # 關鍵：這裡加上 AND role = 'admin'，確保只有管理員能從此處登入
-            cur.execute("SELECT * FROM users WHERE student_id = %s AND role = 'admin'", (data.student_id,))
-            user = cur.fetchone()
-            cur.close()
-            return user
-        finally:
-            release_db(conn)
-    
-    # 呼叫資料庫邏輯
-    user = await asyncio.to_thread(db_logic)
-    
-    # 檢查帳號是否存在，以及密碼是否正確
-    if not user or not verify_password(data.password, user['password']):
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    
-    # 生成 Token
-    token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
-    return {"access_token": token, "role": user['role']}
-
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
@@ -154,15 +131,9 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
     def db_logic():
         conn = get_db()
         try:
-            # 加入 LEFT JOIN 來結合兩張表
-            # u 是 users 的別名，s 是 selections 的別名
+            # 修正：使用 LEFT JOIN 串接 users 與 selections 表
             query = """
-                SELECT 
-                    u.student_id, 
-                    u.name, 
-                    u.email, 
-                    s.choice, 
-                    s.updated_at
+                SELECT u.student_id, u.name, u.email, s.choice, s.updated_at
                 FROM users u
                 LEFT JOIN selections s ON u.student_id = s.student_id
                 WHERE u.role = 'student'
@@ -188,8 +159,8 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     try:
         cur = conn.cursor()
         for row in reader:
-            # 修正點：從 CSV 讀取 password 欄位
-            raw_pw = row.get('password', 'default_password') 
+            # 修正：加上 .strip() 防止隱形空白造成的密碼錯誤
+            raw_pw = row.get('password', '123456').strip() 
             hashed_pw = get_password_hash(raw_pw) 
             
             cur.execute("""
@@ -204,14 +175,14 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         
         conn.commit()
         cur.close()
-        return {"message": "匯入成功，密碼已依 CSV 設定"}
+        return {"message": "匯入成功"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
     finally:
         release_db(conn)
 
-# --- 靜態檔案路由 (其餘 API 路由略，保持你原本的結構即可) ---
+# --- 靜態路由 ---
 @app.api_route("/", methods=["GET", "HEAD"])
 async def read_index(): return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
 @app.get("/login")
