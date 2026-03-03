@@ -13,11 +13,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
-print("--- 系統啟動偵錯 ---")
-print(f"DEBUG: RESEND_API_KEY 是否存在: {os.environ.get('RESEND_API_KEY') is not None}")
-print(f"DEBUG: ADMIN_PASSWORD 是否存在: {os.environ.get('ADMIN_PASSWORD') is not None}")
-print("-------------------")
-
 # 導入你的自訂模組
 from backend.mailer import send_confirmation_email
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
