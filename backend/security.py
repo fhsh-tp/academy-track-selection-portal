@@ -22,15 +22,21 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
+        # --- 新增的除錯資訊 ---
+        print(f"DEBUG: 原始輸入密碼長度: {len(plain_password)}")
+        print(f"DEBUG: 資料庫 Hash 前 5 碼: {hashed_password[:5]}")
+        # ---------------------
+        
         pwd_bytes = plain_password.encode('utf-8')
         hash_bytes = hashed_password.encode('utf-8')
-        return bcrypt.checkpw(pwd_bytes, hash_bytes)
-    except ValueError as e:
-        # 如果是 Bcrypt 格式錯誤，這裡會捕獲
-        print(f"DEBUG: 密碼雜湊格式錯誤: {e}")
-        return False
+        result = bcrypt.checkpw(pwd_bytes, hash_bytes)
+        
+        if not result:
+            print("DEBUG: bcrypt.checkpw 回傳了 False")
+            
+        return result
     except Exception as e:
-        print(f"DEBUG: 驗證過程發生未預期錯誤: {e}")
+        print(f"DEBUG: 驗證時發生例外: {e}")
         return False
 
 # --- JWT 驗證部分 ---
