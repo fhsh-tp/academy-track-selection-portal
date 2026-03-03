@@ -5,7 +5,6 @@ from datetime import datetime
 from backend.security import get_password_hash
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-# 使用全域變數存放池，但初始為 None
 db_pool = None
 
 def init_db_pool():
@@ -54,7 +53,6 @@ def init_db():
         ''')
         
         # 2. 僅保留系統必要的管理員帳號
-        # 這屬於「系統設定」，所以放在這裡是合理的
         raw_admin_pw = os.getenv("ADMIN_PASSWORD")
         if not raw_admin_pw:
             print("⚠️ 警告：未設定 ADMIN_PASSWORD 環境變數，管理員登入將失效")
@@ -73,19 +71,26 @@ def init_db():
         release_db(conn)
 
 def save_choice(student_id, choice):
+    """
+    將學生的選擇存入 selections 表格，若已選擇則更新
+    """
     conn = get_db()
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO users (student_id, name, email, password, role)
-            VALUES (%s, %s, %s, %s, 'student')
+            INSERT INTO selections (student_id, choice, updated_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP)
             ON CONFLICT (student_id) 
             DO UPDATE SET 
-                name = EXCLUDED.name, 
-                email = EXCLUDED.email,
-                password = EXCLUDED.password
-        """, (sid, name, email, default_pw))
+                choice = EXCLUDED.choice,
+                updated_at = CURRENT_TIMESTAMP
+        """, (student_id, choice))
         conn.commit()
         cur.close()
+        print(f"✅ 成功儲存學生 {student_id} 的選項: {choice}")
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ 儲存選項時發生錯誤: {e}")
+        raise e
     finally:
         release_db(conn)
