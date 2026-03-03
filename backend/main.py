@@ -128,6 +128,22 @@ async def admin_login(data: LoginData):
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
+@app.get("/admin/all")
+async def get_all_students(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足")
+        
+    def db_logic():
+        conn = get_db()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT student_id, name, email FROM users WHERE role = 'student'")
+            return cur.fetchall()
+        finally:
+            release_db(conn)
+            
+    return await asyncio.to_thread(db_logic)
+
 @app.post("/admin/import-students")
 async def import_students(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
