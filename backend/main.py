@@ -13,6 +13,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
+print("--- 系統啟動偵錯 ---")
+print(f"DEBUG: RESEND_API_KEY 是否存在: {os.environ.get('RESEND_API_KEY') is not None}")
+print(f"DEBUG: ADMIN_PASSWORD 是否存在: {os.environ.get('ADMIN_PASSWORD') is not None}")
+print("-------------------")
+
 # 導入你的自訂模組
 from backend.mailer import send_confirmation_email
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
@@ -137,31 +142,6 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
     finally:
         release_db(conn)
-
-@app.get("/admin/debug-user/{sid}")
-async def debug_user(sid: str, current_user: dict = Depends(get_current_user)):
-    # 確保只有管理員能看到這頁
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="權限不足")
-        
-    def db_logic():
-        conn = get_db()
-        try:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT student_id, password FROM users WHERE student_id = %s", (sid,))
-            user = cur.fetchone()
-            if not user: return "Not Found"
-            
-            # 回傳一些資訊供你檢查 (不回傳真實密碼)
-            return {
-                "student_id": user['student_id'],
-                "hash_length": len(user['password']),
-                "hash_start": user['password'][:4] # 查看開頭是否為 $2b$
-            }
-        finally:
-            release_db(conn)
-            
-    return await asyncio.to_thread(db_logic)
 
 # --- 靜態檔案路由 (其餘 API 路由略，保持你原本的結構即可) ---
 @app.api_route("/", methods=["GET", "HEAD"])
