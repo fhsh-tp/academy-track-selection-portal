@@ -93,24 +93,25 @@ async def login(data: LoginData):
 @app.post("/submit") 
 async def submit_choice(
     data: SelectionData, 
-    background_tasks: BackgroundTasks, # 修正：補上 background_tasks
+    background_tasks: BackgroundTasks, 
     current_user: dict = Depends(get_current_user)
 ):
-    # 檢查是否已過期
+    # 1. 時間檢查
     if datetime.now() > deadline_dt:
         raise HTTPException(status_code=403, detail="選填期限已過")
     
-    # 修正：使用 current_user['sub'] 而非 user['student_id']
-    student_id = current_user['sub']
+    # 修正點：從 current_user 獲取 'student_id' 而非 'sub'
+    student_id = current_user['student_id'] 
     
-    # 存檔
+    # 2. 存檔
     await asyncio.to_thread(save_choice, student_id, data.choice)
     
-    # 寄送確認信
+    # 3. 寄送確認信
     def get_user_email():
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            # 使用修正後的 student_id
             cur.execute("SELECT email FROM users WHERE student_id = %s", (student_id,))
             row = cur.fetchone()
             return row['email'] if row else None
