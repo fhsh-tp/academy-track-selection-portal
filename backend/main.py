@@ -23,12 +23,21 @@ scheduler = AsyncIOScheduler()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # --- 2. 生命周期管理 ---
+# 修改 main.py 中的 lifespan
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.start()
-    init_db_pool()
-    init_db()
+    try:
+        print("Starting up...")
+        scheduler.start()
+        init_db_pool()
+        init_db()
+        print("Startup complete.")
+    except Exception as e:
+        print(f"❌ 啟動失敗: {e}") # 強制將錯誤印出來
+        raise e  # 讓程式崩潰以便在 Log 中看到堆疊追蹤
+    
     yield
+    
     try:
         if scheduler.running:
             scheduler.shutdown()
