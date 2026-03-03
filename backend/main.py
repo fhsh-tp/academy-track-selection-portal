@@ -74,8 +74,17 @@ async def login(data: LoginData):
             release_db(conn)
     
     user = await asyncio.to_thread(db_logic)
-    if not user or not verify_password(data.password, user['password']):
-        raise HTTPException(status_code=401, detail="學號或密碼錯誤")
+    
+    # --- 這裡加入偵錯邏輯 ---
+    if not user:
+        print(f"DEBUG: 找不到學號 {data.student_id}")
+        raise HTTPException(status_code=401, detail="學號錯誤")
+    
+    is_valid = verify_password(data.password, user['password'])
+    if not is_valid:
+        print(f"DEBUG: 密碼比對失敗，學號: {data.student_id}")
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    # -----------------------
     
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
