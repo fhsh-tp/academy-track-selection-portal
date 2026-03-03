@@ -60,6 +60,9 @@ class SelectionData(BaseModel):
 
 # --- API 路由 ---
 
+@app.api_route("/", methods=["GET", "HEAD"])
+async def read_index(): return FileResponse(...)
+
 @app.post("/login")
 async def login(data: LoginData):
     def db_logic():
