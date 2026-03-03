@@ -22,11 +22,6 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
-        # --- 新增的除錯資訊 ---
-        print(f"DEBUG: 原始輸入密碼長度: {len(plain_password)}")
-        print(f"DEBUG: 資料庫 Hash 前 5 碼: {hashed_password[:5]}")
-        # ---------------------
-        
         pwd_bytes = plain_password.encode('utf-8')
         hash_bytes = hashed_password.encode('utf-8')
         result = bcrypt.checkpw(pwd_bytes, hash_bytes)

@@ -154,8 +154,21 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
     def db_logic():
         conn = get_db()
         try:
+            # 加入 LEFT JOIN 來結合兩張表
+            # u 是 users 的別名，s 是 selections 的別名
+            query = """
+                SELECT 
+                    u.student_id, 
+                    u.name, 
+                    u.email, 
+                    s.choice, 
+                    s.updated_at
+                FROM users u
+                LEFT JOIN selections s ON u.student_id = s.student_id
+                WHERE u.role = 'student'
+            """
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT student_id, name, email FROM users WHERE role = 'student'")
+            cur.execute(query)
             return cur.fetchall()
         finally:
             release_db(conn)
