@@ -62,7 +62,7 @@ def init_db():
             admin_pw = get_password_hash(raw_admin_pw)
             cur.execute("""
                 INSERT INTO users (student_id, name, password, role, email) 
-                VALUES (%s, %s, %s, 'admin', 'admin@school.edu') 
+                VALUES (%s, %s, %s, 'admin', %s) 
                 ON CONFLICT (student_id) DO UPDATE SET password = EXCLUDED.password
             """, ("admin", "系統管理員", admin_pw, "admin@school.edu"))
         
