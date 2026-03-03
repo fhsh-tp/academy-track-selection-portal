@@ -60,23 +60,17 @@ async def check_and_send_reminders():
 # --- 3. 生命周期管理 (啟動/關閉) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 啟動時執行
-    print("🚀 伺服器啟動中...")
+    # 啟動程序
+    scheduler.start()
+    init_db_pool()
+    init_db()
+    yield
+    # 關閉程序 (增加 try-except 忽略錯誤)
     try:
-        init_db_pool() 
-        init_db()      
-        # 設定排程：每天早上 08:00 檢查一次
-        scheduler.add_job(check_and_send_reminders, 'cron', hour=8, minute=0)
-        scheduler.start()
-        print("✅ 資料庫與排程系統準備就緒")
-    except Exception as e:
-        print(f"⚠️ 啟動失敗: {e}")
-    
-    yield 
-    
-    # 關閉時執行
-    scheduler.shutdown()
-    print("🛑 伺服器關閉中...")
+        if scheduler.running:
+            scheduler.shutdown()
+    except Exception:
+        pass
 
 app = FastAPI(lifespan=lifespan)
 

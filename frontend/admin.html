@@ -6,12 +6,12 @@
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        /* 新增排版樣式 */
         .top-left { position: absolute; top: 20px; left: 20px; }
         .bottom-right { display: flex; justify-content: flex-end; margin-top: 30px; }
         .password-box { background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; width: 300px; }
         .btn-logout { background-color: #d93025; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; }
         .btn-export { background-color: #0f9d58; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+        .admin-panel { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
     </style>
 </head>
 <body>
@@ -29,8 +29,15 @@
             <tbody></tbody>
         </table>
 
-        <div style="text-align: left;">
+        <div style="margin-top: 20px; display: flex; gap: 20px;">
             <button onclick="exportToCSV()" class="btn-export">匯出成 CSV</button>
+            
+            <div class="admin-panel">
+                <h3>學生資料批次匯入</h3>
+                <input type="file" id="csvFile" accept=".csv">
+                <button onclick="uploadCSV()" class="btn-primary">上傳 CSV</button>
+                <p style="font-size: 0.8em; color: #666;">請確保 CSV 包含：學號, 姓名, 電子信箱</p>
+            </div>
         </div>
 
         <div class="bottom-right">
@@ -45,18 +52,12 @@
 
     <script src="/static/config.js"></script>
     <script>
-        // 修正後的類組對照表
         const groupMap = {
-            1: "一類組(數A)",
-            2: "一類組(數B)",
-            3: "二類組(理工)",
-            4: "三類組(生醫農)"
+            1: "一類組(數A)", 2: "一類組(數B)", 3: "二類組(理工)", 4: "三類組(生醫農)"
         };
 
         window.onload = () => {
-            if (!localStorage.getItem('jwt_token')) {
-                window.location.href = '/login';
-            }
+            if (!localStorage.getItem('jwt_token')) window.location.href = '/login';
             loadData();
         };
 
@@ -64,25 +65,18 @@
             const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
                 headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
             });
-            
             if (res.status === 401 || res.status === 403) {
-                Swal.fire({ icon: 'error', title: '權限不足', text: '請重新登入' }).then(() => {
-                    window.location.href = '/login';
-                });
+                Swal.fire({ icon: 'error', title: '權限不足', text: '請重新登入' }).then(() => { window.location.href = '/login'; });
                 return;
             }
-            
             const data = await res.json();
             const tbody = document.querySelector('#data-table tbody');
-            tbody.innerHTML = data.map(row => {
-                const groupName = groupMap[row.choice] || '未選';
-                return `<tr>
-                    <td>${row.student_id}</td>
-                    <td>${row.name}</td>
-                    <td>${groupName}</td>
-                    <td>${row.updated_at || '-'}</td>
-                </tr>`;
-            }).join('');
+            tbody.innerHTML = data.map(row => `<tr>
+                <td>${row.student_id}</td>
+                <td>${row.name}</td>
+                <td>${groupMap[row.choice] || '未選'}</td>
+                <td>${row.updated_at || '-'}</td>
+            </tr>`).join('');
         }
 
         async function exportToCSV() {
@@ -90,74 +84,56 @@
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
             });
             const data = await res.json();
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "學號,姓名,類組,更新時間\n";
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF學號,姓名,類組,更新時間\n";
             data.forEach(row => {
-                const groupName = groupMap[row.choice] || '未選';
-                csvContent += `${row.student_id},${row.name},${groupName},${row.updated_at || ''}\n`;
+                csvContent += `${row.student_id},${row.name},${groupMap[row.choice] || '未選'},${row.updated_at || ''}\n`;
             });
-
-            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", encodeURI(csvContent));
             link.setAttribute("download", "選填資料.csv");
             document.body.appendChild(link);
             link.click();
         }
 
-        async function changePassword() {
-            const oldP = document.getElementById('oldPwd').value;
-            const newP = document.getElementById('newPwd').value;
-            const res = await fetch(`${CONFIG.API_BASE_URL}/change-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
-                },
-                body: JSON.stringify({ old_password: oldP, new_password: newP })
-            });
-            
-            if (res.ok) {
-                Swal.fire({ icon: 'success', title: '修改成功' });
-            } else {
-                Swal.fire({ icon: 'error', title: '修改失敗', text: '請檢查舊密碼是否正確' });
+        async function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            if (!file) { Swal.fire({ icon: 'warning', title: '提示', text: '請先選擇一個 CSV 檔案' }); return; }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            Swal.fire({ title: '上傳中...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/admin/import-students`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` },
+                    body: formData
+                });
+
+                if (res.ok) {
+                    Swal.fire({ icon: 'success', title: '匯入成功', text: '學生資料已更新' });
+                    loadData();
+                } else {
+                    const err = await res.json();
+                    Swal.fire({ icon: 'error', title: '匯入失敗', text: err.detail || '請檢查格式' });
+                }
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: '系統錯誤', text: '無法連線至伺服器' });
             }
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = '/login';
+        async function changePassword() {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/change-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` },
+                body: JSON.stringify({ old_password: document.getElementById('oldPwd').value, new_password: document.getElementById('newPwd').value })
+            });
+            res.ok ? Swal.fire({ icon: 'success', title: '修改成功' }) : Swal.fire({ icon: 'error', title: '修改失敗' });
         }
+
+        function logout() { localStorage.clear(); window.location.href = '/login'; }
     </script>
-
-    <input type="file" id="csvFile" accept=".csv">
-    <button onclick="uploadCSV()">上傳學生名單</button>
-
-    <script>
-    async function uploadCSV() {
-        const fileInput = document.getElementById('csvFile');
-        const file = fileInput.files[0];
-        if (!file) return alert("請選擇檔案");
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const token = localStorage.getItem('jwt_token');
-        
-        const res = await fetch(`${CONFIG.API_BASE_URL}/admin/import-students`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: formData
-        });
-
-        if (res.ok) {
-            alert("學生名單匯入成功！");
-        } else {
-            alert("匯入失敗，請檢查格式或權限");
-        }
-    }
-    </script>
-
 </body>
 </html>
