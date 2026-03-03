@@ -13,11 +13,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
-print("--- 系統啟動偵錯 ---")
-print(f"DEBUG: RESEND_API_KEY 是否存在: {os.environ.get('RESEND_API_KEY') is not None}")
-print(f"DEBUG: ADMIN_PASSWORD 是否存在: {os.environ.get('ADMIN_PASSWORD') is not None}")
-print("-------------------")
-
 # 導入你的自訂模組
 from backend.mailer import send_confirmation_email
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
@@ -106,6 +101,32 @@ async def submit(data: SelectionData, background_tasks: BackgroundTasks, user: d
         background_tasks.add_task(send_confirmation_email, email, data.choice)
         
     return {"status": "success"}
+
+@app.post("/admin-login")
+async def admin_login(data: LoginData):
+    # 執行管理員身分驗證
+    def db_logic():
+        conn = get_db()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            # 關鍵：這裡加上 AND role = 'admin'，確保只有管理員能從此處登入
+            cur.execute("SELECT * FROM users WHERE student_id = %s AND role = 'admin'", (data.student_id,))
+            user = cur.fetchone()
+            cur.close()
+            return user
+        finally:
+            release_db(conn)
+    
+    # 呼叫資料庫邏輯
+    user = await asyncio.to_thread(db_logic)
+    
+    # 檢查帳號是否存在，以及密碼是否正確
+    if not user or not verify_password(data.password, user['password']):
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    
+    # 生成 Token
+    token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
+    return {"access_token": token, "role": user['role']}
 
 @app.post("/admin/import-students")
 async def import_students(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
