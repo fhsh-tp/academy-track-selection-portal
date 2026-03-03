@@ -15,8 +15,9 @@ def import_students():
     with open('students.csv', mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            # 這裡引用的 get_password_hash 已經是 bcrypt 版本了
-            hashed_pw = get_password_hash(row['password']) 
+            # --- 關鍵修正：加上 .strip() ---
+            raw_password = row['password'].strip() 
+            hashed_pw = get_password_hash(raw_password) 
             
             # 存入資料庫 (使用 upsert 邏輯)
             cur.execute("""
