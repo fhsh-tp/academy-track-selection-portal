@@ -138,6 +138,31 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     finally:
         release_db(conn)
 
+@app.get("/admin/debug-user/{sid}")
+async def debug_user(sid: str, current_user: dict = Depends(get_current_user)):
+    # 確保只有管理員能看到這頁
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足")
+        
+    def db_logic():
+        conn = get_db()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT student_id, password FROM users WHERE student_id = %s", (sid,))
+            user = cur.fetchone()
+            if not user: return "Not Found"
+            
+            # 回傳一些資訊供你檢查 (不回傳真實密碼)
+            return {
+                "student_id": user['student_id'],
+                "hash_length": len(user['password']),
+                "hash_start": user['password'][:4] # 查看開頭是否為 $2b$
+            }
+        finally:
+            release_db(conn)
+            
+    return await asyncio.to_thread(db_logic)
+
 # --- 靜態檔案路由 (其餘 API 路由略，保持你原本的結構即可) ---
 @app.api_route("/", methods=["GET", "HEAD"])
 async def read_index(): return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
