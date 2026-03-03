@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
     <meta charset="UTF-8">
     <title>管理員後台</title>
     <link rel="stylesheet" href="/static/style.css">
@@ -62,21 +63,44 @@
         };
 
         async function loadData() {
-            const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
-                headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
-            });
-            if (res.status === 401 || res.status === 403) {
-                Swal.fire({ icon: 'error', title: '權限不足', text: '請重新登入' }).then(() => { window.location.href = '/login'; });
-                return;
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/admin/all`, {
+                    headers: {'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`}
+                });
+
+                if (res.status === 401 || res.status === 403) {
+                    Swal.fire({ icon: 'error', title: '權限不足', text: '請重新登入' }).then(() => { window.location.href = '/login'; });
+                    return;
+                }
+
+                const data = await res.json(); // 1. 記得解析 JSON
+                const tbody = document.querySelector('#data-table tbody'); // 2. 選取表格內的 tbody
+                tbody.innerHTML = ''; // 清空舊資料
+
+                data.forEach(student => {
+                    const row = document.createElement('tr');
+
+                    // 建立每一個欄位 (學號, 姓名, 類組, 時間)
+                    // 將欄位資料放在陣列中，用迴圈處理，讓程式更簡潔
+                    const fields = [
+                        student.student_id, 
+                        student.name, 
+                        groupMap[student.choice] || '未選', 
+                        student.updated_at || ''
+                    ];
+
+                    fields.forEach(fieldValue => {
+                        const td = document.createElement('td');
+                        td.textContent = fieldValue; // 3. 使用 textContent，完全杜絕 XSS
+                        row.appendChild(td);
+                    });
+                    
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                console.error("載入資料失敗:", e);
+                Swal.fire({ icon: 'error', title: '讀取失敗', text: '無法從伺服器取得資料' });
             }
-            const data = await res.json();
-            const tbody = document.querySelector('#data-table tbody');
-            tbody.innerHTML = data.map(row => `<tr>
-                <td>${row.student_id}</td>
-                <td>${row.name}</td>
-                <td>${groupMap[row.choice] || '未選'}</td>
-                <td>${row.updated_at || '-'}</td>
-            </tr>`).join('');
         }
 
         async function exportToCSV() {

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
     <meta charset="UTF-8">
     <title>學生登入 - 選類組系統</title>
     <link rel="stylesheet" href="/static/style.css">
@@ -9,7 +10,7 @@
 <body>
     <div class="container login-box">
         <h2>學生登入</h2>
-        <input type="text" id="sid" placeholder="學號 (如: 114001)" class="input-field">
+        <input type="text" id="sid" placeholder="學號 (如: 11400000)" class="input-field">
         <input type="password" id="pwd" placeholder="密碼" class="input-field">
         <button id="loginBtn" onclick="doLogin()" class="btn-primary">確認登入</button>
         </div>
