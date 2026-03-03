@@ -4,12 +4,14 @@ import psycopg2
 import psycopg2.extras
 from datetime import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import csv
+import io
 
 # 導入你的自訂模組
 from backend.mailer import send_confirmation_email
@@ -204,6 +206,49 @@ async def get_all_data(user: dict = Depends(get_current_user)):
         finally:
             release_db(conn)
     return await asyncio.to_thread(db_logic)
+
+@app.post("/admin/import-students")
+async def import_students(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user) # 確保只有登入者可用
+):
+    # 檢查權限
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足")
+
+    # 讀取 CSV
+    content = await file.read()
+    stream = io.StringIO(content.decode('utf-8'))
+    reader = csv.DictReader(stream)
+    
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        for row in reader:
+            # 假設 CSV 有 student_id, name, email 欄位
+            sid = row['student_id']
+            name = row['name']
+            email = row['email']
+            
+            # 設定預設密碼並雜湊
+            default_pw = get_password_hash("default_password") 
+            
+            # 寫入資料庫 (使用 ON CONFLICT 更新已存在的學生)
+            cur.execute("""
+                INSERT INTO users (student_id, name, email, password, role)
+                VALUES (%s, %s, %s, %s, 'student')
+                ON CONFLICT (student_id) 
+                DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email
+            """, (sid, name, email, default_pw))
+        
+        conn.commit()
+        cur.close()
+        return {"message": "匯入成功"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
+    finally:
+        release_db(conn)
 
 @app.post("/change-password")
 async def change_password(data: PasswordChangeData, user: dict = Depends(get_current_user)):

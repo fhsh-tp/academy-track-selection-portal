@@ -130,5 +130,34 @@
             window.location.href = '/login';
         }
     </script>
+
+    <input type="file" id="csvFile" accept=".csv">
+    <button onclick="uploadCSV()">上傳學生名單</button>
+
+    <script>
+    async function uploadCSV() {
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+        if (!file) return alert("請選擇檔案");
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const token = localStorage.getItem('jwt_token');
+        
+        const res = await fetch(`${CONFIG.API_BASE_URL}/admin/import-students`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        if (res.ok) {
+            alert("學生名單匯入成功！");
+        } else {
+            alert("匯入失敗，請檢查格式或權限");
+        }
+    }
+    </script>
+
 </body>
 </html>
