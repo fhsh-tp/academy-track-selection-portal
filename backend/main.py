@@ -166,15 +166,22 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         release_db(conn)
 
 # --- 靜態路由 ---
-@app.get("/")
-async def read_index(): return FileResponse(os.path.join(BASE_DIR, "frontend", "index.html"))
-@app.get("/login")
-async def read_login(): return FileResponse(os.path.join(BASE_DIR, "frontend", "login.html"))
-@app.get("/choose")
-async def read_choose(): return FileResponse(os.path.join(BASE_DIR, "frontend", "choose.html"))
-@app.get("/admin")
-async def read_admin(): return FileResponse(os.path.join(BASE_DIR, "frontend", "admin.html"))
-@app.get("/admin-login")
-async def read_admin_login(): return FileResponse(os.path.join(BASE_DIR, "frontend", "admin-login.html"))
 
+@app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
+async def read_index(): 
+    return os.path.join(BASE_DIR, "frontend", "index.html")
+
+@app.get("/login", response_class=FileResponse)
+async def read_login(): return os.path.join(BASE_DIR, "frontend", "login.html")
+
+@app.get("/choose", response_class=FileResponse)
+async def read_choose(): return os.path.join(BASE_DIR, "frontend", "choose.html")
+
+@app.get("/admin", response_class=FileResponse)
+async def read_admin(): return os.path.join(BASE_DIR, "frontend", "admin.html")
+
+@app.get("/admin-login", response_class=FileResponse)
+async def read_admin_login(): return os.path.join(BASE_DIR, "frontend", "admin-login.html")
+
+# 這裡保留你的 static 掛載
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
