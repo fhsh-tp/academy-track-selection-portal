@@ -87,7 +87,7 @@ def save_choice(student_id, choice):
         """, (student_id, choice))
         conn.commit()
         cur.close()
-        print(f"✅ 成功儲存學生 {student_id} 的選項: {choice}")
+        print(f"✅ 成功儲存學生 {student_id} 的選項")
     except Exception as e:
         conn.rollback()
         print(f"❌ 儲存選項時發生錯誤: {e}")
