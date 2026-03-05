@@ -12,7 +12,7 @@ def send_confirmation_email(recipient: str, choice_name: str):
     try:
         # 【重要】這裡必須修改為你驗證過的網域 Email
         # 例如：noreply@yourdomain.com
-        sender_email = "選組系統 <noreply@你的網域.com>" 
+        sender_email = "noreply@resend.dev" 
         
         params = {
             "from": sender_email,
