@@ -25,6 +25,13 @@ deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
 scheduler = AsyncIOScheduler()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+CHOICE_MAP = {
+    1: "一類組 (數A)",
+    2: "一類組 (數B)",
+    3: "二類組 (理工)",
+    4: "三類組 (生醫農)"
+}
+
 # --- 生命周期管理 ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -124,6 +131,7 @@ async def submit_choice(
 
     email = await asyncio.to_thread(get_user_email)
     if email:
+        choice_name = CHOICE_MAP.get(data.choice, "未知類組")
         background_tasks.add_task(send_confirmation_email, email, data.choice)
     return {"status": "success"}
 
