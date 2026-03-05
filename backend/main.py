@@ -132,7 +132,7 @@ async def submit_choice(
     email = await asyncio.to_thread(get_user_email)
     if email:
         choice_name = CHOICE_MAP.get(data.choice, "未知類組")
-        background_tasks.add_task(send_confirmation_email, email, data.choice)
+        background_tasks.add_task(send_confirmation_email, email, choice_name)
     return {"status": "success"}
 
 @app.get("/admin/all")
