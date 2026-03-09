@@ -27,23 +27,32 @@ def generate_student_pdf(student_name, student_id, choice_name, submit_time):
     except:
         p.setFont("Helvetica", 16)
 
-    # 繪製 PDF 內容
+    # --- 繪製 PDF 內容 ---
     p.drawString(100, 800, "114 學年度高一升高二選填類組確認書")
     p.line(100, 790, 500, 790)
     
-    p.drawRightString(500, 785, f"系統寄件時間：{submit_time}")
+    p.setFontSize(10)
+    p.drawRightString(500, 795, f"系統收件時間：{submit_time}")
+    
     p.setFontSize(12)
     p.drawString(100, 750, f"學生姓名：{student_name}")
     p.drawString(100, 730, f"學生學號：{student_id}")
     p.drawString(100, 710, f"選填類組：{choice_name}")
     
     p.drawString(100, 650, "--------------------------------------------------")
-    p.drawString(100, 630, "家長簽署專欄：")
-    p.drawString(100, 580, "本人已知悉子女之選填結果，並予以同意。")
-    p.drawString(100, 530, "學生簽名:____________________  日期:2026 / ___ / ___")
-    p.drawString(100, 530, "家長簽名:____________________  日期:2026 / ___ / ___")
-    p.drawString(100, 530, "家長電話:____________________  日期:2026 / ___ / ___")
-    p.drawString(100, 530, "導師簽名:____________________  日期:2026 / ___ / ___")
+    p.drawString(100, 630, "簽署專欄：")
+    p.setFontSize(11)
+    p.drawString(100, 610, "本人已知悉子女之選填結果，並予以同意。")
+    
+    # --- 修正簽名欄位座標 (避免重疊) ---
+    p.drawString(100, 560, "學生簽名：____________________  日期：2026 / ___ / ___")
+    p.drawString(100, 530, "家長簽名：____________________  日期：2026 / ___ / ___")
+    p.drawString(100, 500, "家長電話：____________________")
+    p.drawString(100, 450, "導師簽名：____________________  日期：2026 / ___ / ___")
+    
+    p.setFontSize(9)
+    p.setFillAlpha(0.5) # 設定稍微透明，像是浮水印
+    p.drawString(100, 100, f"本文件由選填系統自動產生，防偽校驗碼：{base64.b64encode(student_id.encode()).decode()[:10]}")
     
     p.showPage()
     p.save()
@@ -63,19 +72,30 @@ def send_confirmation_email(recipient: str, student_name: str, student_id: str, 
         encoded_pdf = base64.b64encode(pdf_content).decode()
 
         # 2. 準備郵件與附件
+        # 確保 attachments 是一個乾淨的 list，沒有 Ellipsis (...)
         params = {
-            "from": "noreply@resend.dev",
+            "from": "onboarding@resend.dev", # 尚未驗證網域前通常用這個
             "to": recipient,
             "subject": f"【確認書】{student_name} 選組結果 (系統紀錄於 {submit_time})",
-            "attachments": [...],
+            "attachments": [
+                {
+                    "content": encoded_pdf,
+                    "filename": f"{student_id}_{student_name}_同意書.pdf",
+                }
+            ],
             "html": f"""
-                <h3>{student_name} 同學您好：</h3>
-                <p>您的選填已於 <strong>{submit_time}</strong> 完成。</p>
-                <p>選擇類組：{choice_name}</p>
-                <p>請下載附件 PDF 並簽名繳回。</p>
+                <div style="font-family: sans-serif; line-height: 1.6;">
+                    <h3>{student_name} 同學您好：</h3>
+                    <p>您的選填已於 <strong>{submit_time}</strong> 完成。</p>
+                    <p>選擇類組：<span style="color: #e74c3c; font-weight: bold;">{choice_name}</span></p>
+                    <br>
+                    <p>請下載附件中的專屬 PDF 同意書，列印後由本人及家長簽名，並於指定日期前繳回教務處。</p>
+                    <p style="color: #666; font-size: 0.8em;">(本郵件由系統自動發出，請勿直接回覆)</p>
+                </div>
             """
         }
         
         resend.Emails.send(params)
+        print(f"✅ 成功為 {student_name} 寄出 PDF 郵件")
     except Exception as e:
-        print(f"❌ 失敗: {e}")
+        print(f"❌ 郵件發送過程出錯: {e}")
