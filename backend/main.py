@@ -19,8 +19,12 @@ from backend.database import init_db, init_db_pool, save_choice, get_db, release
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
 # --- 全域設定 ---
+# 增加預設值，避免環境變數沒抓到時崩潰
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
-deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
+try:
+    deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
+except:
+    deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -36,16 +40,13 @@ CHOICE_MAP = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 系統啟動中...")
-    scheduler.start()
     init_db_pool()
     init_db()
+    scheduler.start()
     yield
     print("🛑 系統關閉中...")
-    try:
-        if scheduler.running:
-            scheduler.shutdown()
-    except Exception:
-        pass
+    if scheduler.running:
+        scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -111,25 +112,24 @@ async def submit_choice(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)):
 
-    submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
     # 1. 檢查期限
     if datetime.now() > deadline_dt:
         raise HTTPException(status_code=403, detail="選填期限已過")
     
-    # 2. 獲取當前使用者資訊
-    # 這裡的 key 必須對應你資料庫或是 JWT 解碼後的內容
-    student_id = current_user.get('student_id')
-    student_name = current_user.get('name', '學生') # 預設名稱避免報錯
+    # 2. 修正使用者資訊抓取 (對應 JWT 的 sub)
+    student_id = current_user.get('sub') 
+    if not student_id:
+        raise HTTPException(status_code=401, detail="無效的使用者身分")
+        
+    submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # 3. 儲存到資料庫 (使用 to_thread 避免阻斷)
+    # 3. 儲存到資料庫 (to_thread 確保多人點擊不堵塞)
     await asyncio.to_thread(save_choice, student_id, data.choice)
     
     # 4. 準備寄信資訊
     choice_name = CHOICE_MAP.get(data.choice, "未知類組")
 
-    # 定義內部函數來抓取最新的 Email
-    def get_user_email():
+    def get_user_info():
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -138,20 +138,20 @@ async def submit_choice(
         finally:
             release_db(conn)
 
-    user_info = await asyncio.to_thread(get_user_email)
+    user_info = await asyncio.to_thread(get_user_info)
     
-    # 5. 如果有 Email，觸發背景寄信任務
+    # 5. 背景寄信 (完全不佔用 Response 時間)
     if user_info and user_info.get('email'):
         background_tasks.add_task(
             send_confirmation_email, 
             user_info['email'], 
-            user_info['name'], # 使用資料庫內的姓名
+            user_info['name'], 
             student_id, 
             choice_name,
             submit_time
         )
     
-    return {"status": "success", "message": "選填成功並已寄出確認信"}
+    return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
@@ -160,7 +160,12 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
     def db_logic():
         conn = get_db()
         try:
-            query = "SELECT u.student_id, u.name, u.email, s.choice, s.updated_at FROM users u LEFT JOIN selections s ON u.student_id = s.student_id WHERE u.role = 'student'"
+            query = """
+                SELECT u.student_id, u.name, u.email, s.choice, s.updated_at 
+                FROM users u 
+                LEFT JOIN selections s ON u.student_id = s.student_id 
+                WHERE u.role = 'student'
+            """
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute(query)
             return cur.fetchall()
@@ -172,16 +177,23 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
 async def import_students(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="權限不足")
+    
     content = await file.read()
     stream = io.StringIO(content.decode('utf-8'))
     reader = csv.DictReader(stream)
+    
     conn = get_db()
     try:
         cur = conn.cursor()
         for row in reader:
             raw_pw = row.get('password', '123456').strip() 
             hashed_pw = get_password_hash(raw_pw) 
-            cur.execute("""INSERT INTO users (student_id, name, email, password, role) VALUES (%s, %s, %s, %s, 'student') ON CONFLICT (student_id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, password = EXCLUDED.password""", (row['student_id'], row['name'], row['email'], hashed_pw))
+            cur.execute("""
+                INSERT INTO users (student_id, name, email, password, role) 
+                VALUES (%s, %s, %s, %s, 'student') 
+                ON CONFLICT (student_id) DO UPDATE SET 
+                name = EXCLUDED.name, email = EXCLUDED.email, password = EXCLUDED.password
+            """, (row['student_id'], row['name'], row['email'], hashed_pw))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}
@@ -191,23 +203,26 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     finally:
         release_db(conn)
 
-# --- 靜態路由 ---
-
-@app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
+# --- 靜態檔案路由 ---
+@app.get("/", response_class=FileResponse)
 async def read_index(): 
     return os.path.join(BASE_DIR, "frontend", "index.html")
 
 @app.get("/login", response_class=FileResponse)
-async def read_login(): return os.path.join(BASE_DIR, "frontend", "login.html")
+async def read_login(): 
+    return os.path.join(BASE_DIR, "frontend", "login.html")
 
 @app.get("/choose", response_class=FileResponse)
-async def read_choose(): return os.path.join(BASE_DIR, "frontend", "choose.html")
+async def read_choose(): 
+    return os.path.join(BASE_DIR, "frontend", "choose.html")
 
 @app.get("/admin", response_class=FileResponse)
-async def read_admin(): return os.path.join(BASE_DIR, "frontend", "admin.html")
+async def read_admin(): 
+    return os.path.join(BASE_DIR, "frontend", "admin.html")
 
 @app.get("/admin-login", response_class=FileResponse)
-async def read_admin_login(): return os.path.join(BASE_DIR, "frontend", "admin-login.html")
+async def read_admin_login(): 
+    return os.path.join(BASE_DIR, "frontend", "admin-login.html")
 
-# 這裡保留你的 static 掛載
+# 掛載靜態資料夾 (放在所有路由最後面)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
