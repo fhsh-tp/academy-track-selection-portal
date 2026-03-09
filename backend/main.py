@@ -110,6 +110,8 @@ async def submit_choice(
     data: SelectionData,
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)):
+
+    submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # 1. 檢查期限
     if datetime.now() > deadline_dt:
@@ -145,7 +147,8 @@ async def submit_choice(
             user_info['email'], 
             user_info['name'], # 使用資料庫內的姓名
             student_id, 
-            choice_name
+            choice_name,
+            submit_time
         )
     
     return {"status": "success", "message": "選填成功並已寄出確認信"}

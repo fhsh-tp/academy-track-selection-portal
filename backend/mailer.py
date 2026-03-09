@@ -31,6 +31,7 @@ def generate_student_pdf(student_name, student_id, choice_name):
     p.drawString(100, 800, "114 學年度高一升高二選填類組確認書")
     p.line(100, 790, 500, 790)
     
+    p.drawRightString(500, 785, f"系統寄件時間：{submit_time}")
     p.setFontSize(12)
     p.drawString(100, 750, f"學生姓名：{student_name}")
     p.drawString(100, 730, f"學生學號：{student_id}")
@@ -39,7 +40,10 @@ def generate_student_pdf(student_name, student_id, choice_name):
     p.drawString(100, 650, "--------------------------------------------------")
     p.drawString(100, 630, "家長簽署專欄：")
     p.drawString(100, 580, "本人已知悉子女之選填結果，並予以同意。")
-    p.drawString(100, 530, "家長簽名：____________________  日期：2026 / ___ / ___")
+    p.drawString(100, 530, "學生簽名:____________________  日期:2026 / ___ / ___")
+    p.drawString(100, 530, "家長簽名:____________________  日期:2026 / ___ / ___")
+    p.drawString(100, 530, "家長電話:____________________  日期:2026 / ___ / ___")
+    p.drawString(100, 530, "導師簽名:____________________  日期:2026 / ___ / ___")
     
     p.showPage()
     p.save()
@@ -55,33 +59,23 @@ def send_confirmation_email(recipient: str, student_name: str, student_id: str, 
 
     try:
         # 1. 生成 PDF
-        pdf_content = generate_student_pdf(student_name, student_id, choice_name)
+        pdf_content = generate_student_pdf(student_name, student_id, choice_name, submit_time)
         encoded_pdf = base64.b64encode(pdf_content).decode()
 
         # 2. 準備郵件與附件
         params = {
-            "from": "noreply@resend.dev", # 記得之後驗證網域後要改掉
+            "from": "noreply@resend.dev",
             "to": recipient,
-            "subject": f"【確認書】{student_name} 同學的選組結果通知",
-            "attachments": [
-                {
-                    "content": encoded_pdf,
-                    "filename": f"{student_id}_{student_name}_同意書.pdf",
-                }
-            ],
+            "subject": f"【確認書】{student_name} 選組結果 (系統紀錄於 {submit_time})",
+            "attachments": [...],
             "html": f"""
-                <div style="font-family: sans-serif; line-height: 1.6;">
-                    <h3>{student_name} 同學您好：</h3>
-                    <p>您已成功完成 114 學年度選類組系統選填。</p>
-                    <p>您的選擇為：<strong>{choice_name}</strong></p>
-                    <hr>
-                    <p><strong>請注意：</strong>隨信附上您的專屬確認同意書 PDF，請下載列印並請家長簽名後繳回。</p>
-                </div>
+                <h3>{student_name} 同學您好：</h3>
+                <p>您的選填已於 <strong>{submit_time}</strong> 完成。</p>
+                <p>選擇類組：{choice_name}</p>
+                <p>請下載附件 PDF 並簽名繳回。</p>
             """
         }
         
         resend.Emails.send(params)
-        print(f"✅ 專屬 PDF 郵件已發送至 {recipient}")
-        
     except Exception as e:
-        print(f"❌ 寄信失敗: {e}")
+        print(f"❌ 失敗: {e}")
