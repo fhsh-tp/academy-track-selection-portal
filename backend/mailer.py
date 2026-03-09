@@ -16,7 +16,7 @@ if os.path.exists(font_path):
 else:
     print(f"⚠️ 找不到字體檔: {font_path}, PDF 中文可能顯示異常")
 
-def generate_student_pdf(student_name, student_id, choice_name):
+def generate_student_pdf(student_name, student_id, choice_name, submit_time):
     """動態產生 PDF 並回傳位元組內容"""
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer)
@@ -51,7 +51,7 @@ def generate_student_pdf(student_name, student_id, choice_name):
     buffer.seek(0)
     return buffer.read()
 
-def send_confirmation_email(recipient: str, student_name: str, student_id: str, choice_name: str):
+def send_confirmation_email(recipient: str, student_name: str, student_id: str, choice_name: str, submit_time: str):
     """合併後的單一發信函數"""
     if not resend.api_key:
         print("⚠️ 未設定 RESEND_API_KEY, 無法寄信")

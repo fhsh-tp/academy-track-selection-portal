@@ -54,8 +54,11 @@
     <script src="/static/config.js"></script>
     <script>
         const groupMap = {
-            1: "一類組(數A)", 2: "一類組(數B)", 3: "二類組(理工)", 4: "三類組(生醫農)"
-        };
+            1: "一類組 (文法商數A)", 
+            2: "一類組 (文法商數B)", 
+            3: "二類組 (理工資)", 
+            4: "三類組 (生醫農)"
+            };
 
         window.onload = () => {
             if (!localStorage.getItem('jwt_token')) window.location.href = '/login';
