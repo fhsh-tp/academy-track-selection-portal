@@ -39,7 +39,7 @@
 
             const result = await Swal.fire({
                 title: '確認送出？',
-                text: "請再三確認",
+                text: "請再三確認，送出後系統將開始處理",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: '確定送出',
@@ -47,6 +47,19 @@
             });
 
             if (result.isConfirmed) {
+                // --- 核心改動：開始處理流量防護 ---
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = true; // 禁用按鈕防止重複點擊
+                btn.innerText = "處理中，請稍候...";
+                
+                // 顯示一個轉圈圈，讓學生知道系統在跑，不要亂動
+                Swal.fire({
+                    title: '處理中',
+                    text: '正在紀錄您的選擇，請勿關閉視窗...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
                 const token = localStorage.getItem('jwt_token');
                 try {
                     const res = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
@@ -69,9 +82,15 @@
                     } else {
                         const err = await res.json();
                         Swal.fire({ icon: 'error', title: '送出失敗', text: err.detail || '請洽管理員' });
+                        // 失敗了，要把按鈕恢復
+                        btn.disabled = false;
+                        btn.innerText = "確認送出";
                     }
                 } catch (e) {
-                    Swal.fire({ icon: 'error', title: '系統錯誤', text: '伺服器連線中斷' });
+                    Swal.fire({ icon: 'error', title: '系統錯誤', text: '伺服器目前忙碌中，請稍後再試' });
+                    // 系統報錯也要把按鈕恢復
+                    btn.disabled = false;
+                    btn.innerText = "確認送出";
                 }
             }
         }

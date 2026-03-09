@@ -4,7 +4,11 @@ import os
 from datetime import datetime
 from backend.security import get_password_hash
 
+# 1. 取得環境變數
 DATABASE_URL = os.environ.get("DATABASE_URL")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+# 2. 全域連線池變數
 db_pool = None
 
 def init_db_pool():
@@ -12,9 +16,12 @@ def init_db_pool():
     if db_pool is None:
         try:
             print("正在建立資料庫連線池...")
-            # 限制 maxconn 為 15，避免超出免費版 Postgres 的連線限制
-            db_pool = psycopg2.pool.ThreadedConnectionPool(1, 15, DATABASE_URL, sslmode='require')
-            print("✅ 資料庫連線池建立成功")
+            # minconn=1: 平時保留一個，maxconn=20: 巔峰時期允許 20 個連線同時作業
+            # 這對 Supabase 或 Zeabur 的免費版來說是個安全的範圍
+            db_pool = psycopg2.pool.ThreadedConnectionPool(
+                1, 20, DATABASE_URL, sslmode='require'
+            )
+            print("✅ 資料庫連線池建立成功 (Max: 20)")
         except Exception as e:
             print(f"❌ 資料庫連線池建立失敗: {e}")
             raise e
@@ -28,12 +35,12 @@ def release_db(conn):
     if db_pool:
         db_pool.putconn(conn)
 
+# 初始化資料庫表格
 def init_db():
     conn = get_db()
     try:
         cur = conn.cursor()
-        
-        # 1. 建立表格結構
+        # 建立表格
         cur.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 student_id TEXT PRIMARY KEY,
@@ -43,7 +50,6 @@ def init_db():
                 email TEXT
             )
         ''')
-        
         cur.execute('''
             CREATE TABLE IF NOT EXISTS selections (
                 student_id TEXT PRIMARY KEY REFERENCES users(student_id),
@@ -52,12 +58,9 @@ def init_db():
             )
         ''')
         
-        # 2. 僅保留系統必要的管理員帳號
-        raw_admin_pw = os.getenv("ADMIN_PASSWORD")
-        if not raw_admin_pw:
-            print("⚠️ 警告：未設定 ADMIN_PASSWORD 環境變數，管理員登入將失效")
-        else:
-            admin_pw = get_password_hash(raw_admin_pw)
+        # 處理管理員帳號
+        if ADMIN_PASSWORD:
+            admin_pw = get_password_hash(ADMIN_PASSWORD)
             cur.execute("""
                 INSERT INTO users (student_id, name, password, role, email) 
                 VALUES (%s, %s, %s, 'admin', %s) 
@@ -71,12 +74,10 @@ def init_db():
         release_db(conn)
 
 def save_choice(student_id, choice):
-    """
-    將學生的選擇存入 selections 表格，若已選擇則更新
-    """
     conn = get_db()
     try:
         cur = conn.cursor()
+        # 使用 PostgreSQL 的 UPSERT 語法，防止重複寫入導致的錯誤
         cur.execute("""
             INSERT INTO selections (student_id, choice, updated_at)
             VALUES (%s, %s, CURRENT_TIMESTAMP)
