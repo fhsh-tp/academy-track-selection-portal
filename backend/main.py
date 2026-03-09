@@ -117,7 +117,7 @@ async def submit_choice(
         raise HTTPException(status_code=403, detail="選填期限已過")
     
     # 2. 修正使用者資訊抓取 (對應 JWT 的 sub)
-    student_id = current_user.get('sub') 
+    student_id = current_user.get('student_id') or current_user.get('sub') 
     if not student_id:
         raise HTTPException(status_code=401, detail="無效的使用者身分")
         
