@@ -32,7 +32,8 @@ def send_confirmation_email(recipient, student_name, student_id, choice_text, su
     except: pass
 
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls() # 啟動安全傳輸
             server.login(gmail_user, gmail_password)
             server.send_message(msg)
         return True
