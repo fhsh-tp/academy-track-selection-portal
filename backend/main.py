@@ -107,33 +107,48 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit") 
 async def submit_choice(
-    data: SelectionData, 
-    background_tasks: BackgroundTasks, 
-    current_user: dict = Depends(get_current_user)
-):
+    data: SelectionData,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)):
+    
+    # 1. 檢查期限
     if datetime.now() > deadline_dt:
         raise HTTPException(status_code=403, detail="選填期限已過")
     
-    # 使用正確的 key
-    student_id = current_user['student_id'] 
+    # 2. 獲取當前使用者資訊
+    # 這裡的 key 必須對應你資料庫或是 JWT 解碼後的內容
+    student_id = current_user.get('student_id')
+    student_name = current_user.get('name', '學生') # 預設名稱避免報錯
+    
+    # 3. 儲存到資料庫 (使用 to_thread 避免阻斷)
     await asyncio.to_thread(save_choice, student_id, data.choice)
     
-    # 寄信
+    # 4. 準備寄信資訊
+    choice_name = CHOICE_MAP.get(data.choice, "未知類組")
+
+    # 定義內部函數來抓取最新的 Email
     def get_user_email():
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT email FROM users WHERE student_id = %s", (student_id,))
-            row = cur.fetchone()
-            return row['email'] if row else None
+            cur.execute("SELECT email, name FROM users WHERE student_id = %s", (student_id,))
+            return cur.fetchone()
         finally:
             release_db(conn)
 
-    email = await asyncio.to_thread(get_user_email)
-    if email:
-        choice_name = CHOICE_MAP.get(data.choice, "未知類組")
-        background_tasks.add_task(send_confirmation_email, email, choice_name)
-    return {"status": "success"}
+    user_info = await asyncio.to_thread(get_user_email)
+    
+    # 5. 如果有 Email，觸發背景寄信任務
+    if user_info and user_info.get('email'):
+        background_tasks.add_task(
+            send_confirmation_email, 
+            user_info['email'], 
+            user_info['name'], # 使用資料庫內的姓名
+            student_id, 
+            choice_name
+        )
+    
+    return {"status": "success", "message": "選填成功並已寄出確認信"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
