@@ -21,8 +21,8 @@ def send_confirmation_email(recipient: str, choice_name: str):
             "html": f"""
                 <div style="font-family: sans-serif;">
                     <h2>選組結果確認</h2>
-                    <p>您好，您已成功完成選填。</p>
-                    <p>您的選擇為：<strong>{choice_name}</strong></p>
+                    <p>您好，您:<strong>{choice_name}</strong>已成功完成選填。</p>
+                    <p>您的選擇為:<strong>{choice_name}</strong></p>
                     <br>
                     <p style="color: #666; font-size: 0.9em;">本信件為系統自動發送，請勿直接回覆。</p>
                 </div>

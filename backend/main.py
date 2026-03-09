@@ -26,9 +26,9 @@ scheduler = AsyncIOScheduler()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CHOICE_MAP = {
-    1: "一類組 (數A)",
-    2: "一類組 (數B)",
-    3: "二類組 (理工)",
+    1: "一類組 (文法商數A)",
+    2: "一類組 (文法商數B)",
+    3: "二類組 (理工資)",
     4: "三類組 (生醫農)"
 }
 
