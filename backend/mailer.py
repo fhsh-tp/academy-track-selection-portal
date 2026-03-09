@@ -74,7 +74,7 @@ def send_confirmation_email(recipient: str, student_name: str, student_id: str, 
         # 2. 準備郵件與附件
         # 確保 attachments 是一個乾淨的 list，沒有 Ellipsis (...)
         params = {
-            "from": "onboarding@resend.dev", # 尚未驗證網域前通常用這個
+            "from": "教務處 <noreply@send.fhsh.kh.edu.tw>", # 尚未驗證網域前通常用這個
             "to": recipient,
             "subject": f"【確認書】{student_name} 選組結果 (系統紀錄於 {submit_time})",
             "attachments": [
