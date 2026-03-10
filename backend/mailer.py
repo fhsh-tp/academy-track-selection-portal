@@ -10,12 +10,18 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # 這是 backend/
+ROOT_DIR = os.path.dirname(BASE_DIR) # 這是專案根目錄
+# 指向 frontend 資料夾下的字型檔
+font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
+
 # 註冊中文字型 (確保 NotoSansTC-Regular.ttf 在專案根目錄或指定路徑)
 # 如果檔案在其他資料夾，請修改路徑，例如 'backend/NotoSansTC-Regular.ttf'
 try:
-    pdfmetrics.registerFont(TTFont('backend', 'NotoSansTC-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+    print(f"✅ PDF 字型註冊成功: {font_path}")
 except Exception as e:
-    print(f"DEBUG: 字型註冊失敗: {e}", flush=True)
+    print(f"❌ PDF 字型註冊失敗: {e}")
 
 def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     buffer = io.BytesIO()
