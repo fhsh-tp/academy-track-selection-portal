@@ -27,7 +27,7 @@ from backend.security import verify_password, create_access_token, get_current_u
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 註冊字型 (確保路徑對應你的專案根目錄下的字型檔)
-font_path = os.path.join(BASE_DIR, "NotoSansTC-Regular.ttf")
+font_path = os.path.join(BASE_DIR, "frontend", "NotoSansTC-Regular.ttf")
 pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
 
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
