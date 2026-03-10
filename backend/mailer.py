@@ -32,8 +32,8 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     styles.add(ParagraphStyle(name='ChineseNormal', fontName='ChineseFont', fontSize=11, leading=16))
     
     elements = []
-    elements.append(Paragraph(f"XXX 臺北市立 XXX 高級中學", styles['ChineseHeading']))
-    elements.append(Paragraph("114學年度高中部高二選填類組/志願確認同意書", styles['ChineseTitle']))
+    elements.append(Paragraph(f"臺北市立復興高級中學", styles['ChineseHeading']))
+    elements.append(Paragraph("114學年度臺北市立復興高級中學選填類組/志願確認同意書", styles['ChineseTitle']))
     
     line_table = Table([[""]], colWidths=[495], rowHeights=[2])
     line_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.navy)]))
@@ -52,6 +52,28 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     choice_table = Table(choice_data, colWidths=[200, 280])
     choice_table.setStyle(TableStyle([('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'), ('GRID', (0, 0), (-1, -1), 0.5, colors.navy)]))
     elements.append(choice_table)
+
+    elements.append(Spacer(1, 40)) # 加入空間與上面的內容區隔
+    
+    # 簽名區塊表格
+    sig_data = [
+        ["學生簽名:____________________", "家長/監護人簽名:____________________","導師簽名:____________________"],
+        ["日期：       年       月       日"]
+    ]
+    
+    # colWidths 設定寬度，讓左右兩邊對齊
+    sig_table = Table(sig_data, colWidths=[240, 240])
+    
+    # 設定簽名表格樣式：字型、行高、隱藏格線
+    sig_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('LEADING', (0, 0), (-1, -1), 25), # 調整行距，讓字不擠在一起
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    
+    elements.append(sig_table)
+    # ... (接著 doc.build(elements))
     
     doc.build(elements)
     return buffer.getvalue()
