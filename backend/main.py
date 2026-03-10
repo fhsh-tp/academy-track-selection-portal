@@ -23,22 +23,22 @@ from backend.mailer import send_confirmation_email, generate_formal_pdf
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
-# --- 全域設定 ---
+# --- 全域路徑設定 ---
+# 獲取 main.py 所在的絕對目錄 (即 backend/)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# 修正：使用 BASE_DIR 來指向 frontend 資料夾
-current_file_dir = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(current_file_dir)
-
+# 獲取專案根目錄 (上一層)
+ROOT_DIR = os.path.dirname(BASE_DIR)
+# 定義字型路徑
 font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
-# 註冊字型 (加上簡單的檢查)
+# 註冊字型
 if os.path.exists(font_path):
     pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
-    print(f"✅ [成功] 字型已註冊: {font_path}", flush=True)
+    print(f"✅ 字型註冊成功: {font_path}")
 else:
-    print(f"❌ [失敗] 找不到字型檔，請檢查專案根目錄是否有 frontend/ 資料夾: {font_path}", flush=True)
+    print(f"❌ 警告：字型檔未找到，檢查路徑: {font_path}")
 
+# --- 系統設定 ---
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
 try:
     deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
@@ -46,13 +46,7 @@ except:
     deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
-
-CHOICE_MAP = {
-    1: "一類組 (文法商數A)",
-    2: "一類組 (文法商數B)",
-    3: "二類組 (理工資)",
-    4: "三類組 (生醫農)"
-}
+CHOICE_MAP = {1: "一類組 (文法商數A)", 2: "一類組 (文法商數B)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
 
 # --- 生命周期管理 ---
 @asynccontextmanager
@@ -63,29 +57,16 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     print("🛑 系統關閉中...")
-    if scheduler.running:
-        scheduler.shutdown()
+    if scheduler.running: scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --- 資料模型 ---
-class LoginData(BaseModel):
-    student_id: str
-    password: str
-
-class SelectionData(BaseModel):
-    choice: int
+# --- 模型 ---
+class LoginData(BaseModel): student_id: str; password: str
+class SelectionData(BaseModel): choice: int
 
 # --- API 路由 ---
-
 @app.post("/login")
 async def login(data: LoginData):
     def db_logic():
@@ -94,13 +75,9 @@ async def login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally:
-            release_db(conn)
-    
+        finally: release_db(conn)
     user = await asyncio.to_thread(db_logic)
-    if not user or not verify_password(data.password, user['password']):
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    
+    if not user or not verify_password(data.password, user['password']): raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
@@ -112,132 +89,76 @@ async def admin_login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally:
-            release_db(conn)
-
+        finally: release_db(conn)
     user = await asyncio.to_thread(db_logic)
-    if not user or user.get('role') != 'admin':
-        raise HTTPException(status_code=403, detail="權限不足")
-    if not verify_password(data.password, user['password']):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
-    
+    if not user or user.get('role') != 'admin': raise HTTPException(status_code=403, detail="權限不足")
+    if not verify_password(data.password, user['password']): raise HTTPException(status_code=401, detail="密碼錯誤")
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
 @app.post("/submit") 
-async def submit_choice(
-    data: SelectionData,
-    background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)):
-
-    if datetime.now() > deadline_dt:
-        raise HTTPException(status_code=403, detail="選填期限已過")
-    
+async def submit_choice(data: SelectionData, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    if datetime.now() > deadline_dt: raise HTTPException(status_code=403, detail="選填期限已過")
     student_id = current_user.get('student_id') or current_user.get('sub') 
-    if not student_id:
-        raise HTTPException(status_code=401, detail="無效的使用者身分")
-        
+    if not student_id: raise HTTPException(status_code=401, detail="無效的使用者身分")
     submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     choice_name = CHOICE_MAP.get(data.choice, "未知類組")
-
     def get_user_info():
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT email, name FROM users WHERE student_id = %s", (student_id,))
             return cur.fetchone()
-        finally:
-            release_db(conn)
-
+        finally: release_db(conn)
     user_info = await asyncio.to_thread(get_user_info)
-    if not user_info:
-        raise HTTPException(status_code=404, detail="找不到使用者資料")
-
+    if not user_info: raise HTTPException(status_code=404, detail="找不到使用者資料")
     await asyncio.to_thread(save_choice, student_id, data.choice)
-    
-    pdf_data = generate_formal_pdf(
-        user_info['name'], 
-        student_id, 
-        choice_name, 
-        submit_time
-    )
-
+    pdf_data = generate_formal_pdf(user_info['name'], student_id, choice_name, submit_time)
     if user_info and user_info.get('email'):
-        background_tasks.add_task(
-            send_confirmation_email, 
-            user_info['email'], 
-            user_info['name'], 
-            student_id, 
-            choice_name,
-            submit_time,
-            pdf_data 
-        )
-    
+        background_tasks.add_task(send_confirmation_email, user_info['email'], user_info['name'], student_id, choice_name, submit_time, pdf_data)
     return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="權限不足")
+    if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
     def db_logic():
         conn = get_db()
         try:
-            query = """
-                SELECT u.student_id, u.name, u.email, s.choice, s.updated_at 
-                FROM users u 
-                LEFT JOIN selections s ON u.student_id = s.student_id 
-                WHERE u.role = 'student'
-            """
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute(query)
+            cur.execute("SELECT u.student_id, u.name, u.email, s.choice, s.updated_at FROM users u LEFT JOIN selections s ON u.student_id = s.student_id WHERE u.role = 'student'")
             return cur.fetchall()
-        finally:
-            release_db(conn)
+        finally: release_db(conn)
     return await asyncio.to_thread(db_logic)
 
 @app.post("/admin/import-students")
 async def import_students(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="權限不足")
-    
+    if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
     content = await file.read()
     stream = io.StringIO(content.decode('utf-8'))
     reader = csv.DictReader(stream)
-    
     conn = get_db()
     try:
         cur = conn.cursor()
         for row in reader:
-            raw_pw = row.get('password', '123456').strip() 
-            hashed_pw = get_password_hash(raw_pw) 
-            cur.execute("""
-                INSERT INTO users (student_id, name, email, password, role) 
-                VALUES (%s, %s, %s, %s, 'student') 
-                ON CONFLICT (student_id) DO UPDATE SET 
-                name = EXCLUDED.name, email = EXCLUDED.email, password = EXCLUDED.password
-            """, (row['student_id'], row['name'], row['email'], hashed_pw))
+            hashed_pw = get_password_hash(row.get('password', '123456').strip())
+            cur.execute("INSERT INTO users (student_id, name, email, password, role) VALUES (%s, %s, %s, %s, 'student') ON CONFLICT (student_id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email, password = EXCLUDED.password", (row['student_id'], row['name'], row['email'], hashed_pw))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
-    finally:
-        release_db(conn)
+    finally: release_db(conn)
 
+# 靜態檔案路由
 @app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
-async def read_index(): return os.path.join(BASE_DIR, "frontend", "index.html")
-
+async def read_index(): return os.path.join(ROOT_DIR, "frontend", "index.html")
 @app.get("/login", response_class=FileResponse)
-async def read_login(): return os.path.join(BASE_DIR, "frontend", "login.html")
-
+async def read_login(): return os.path.join(ROOT_DIR, "frontend", "login.html")
 @app.get("/choose", response_class=FileResponse)
-async def read_choose(): return os.path.join(BASE_DIR, "frontend", "choose.html")
-
+async def read_choose(): return os.path.join(ROOT_DIR, "frontend", "choose.html")
 @app.get("/admin", response_class=FileResponse)
-async def read_admin(): return os.path.join(BASE_DIR, "frontend", "admin.html")
-
+async def read_admin(): return os.path.join(ROOT_DIR, "frontend", "admin.html")
 @app.get("/admin-login", response_class=FileResponse)
-async def read_admin_login(): return os.path.join(BASE_DIR, "frontend", "admin-login.html")
-
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
+async def read_admin_login(): return os.path.join(ROOT_DIR, "frontend", "admin-login.html")
+app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static")
