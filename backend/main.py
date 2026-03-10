@@ -96,27 +96,24 @@ async def admin_login(data: LoginData):
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
-@app.post("/submit") 
-async def submit_choice(data: SelectionData, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
-    if datetime.now() > deadline_dt: raise HTTPException(status_code=403, detail="選填期限已過")
-    student_id = current_user.get('student_id') or current_user.get('sub') 
-    if not student_id: raise HTTPException(status_code=401, detail="無效的使用者身分")
-    submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    choice_name = CHOICE_MAP.get(data.choice, "未知類組")
-    def get_user_info():
-        conn = get_db()
-        try:
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT email, name FROM users WHERE student_id = %s", (student_id,))
-            return cur.fetchone()
-        finally: release_db(conn)
-    user_info = await asyncio.to_thread(get_user_info)
-    if not user_info: raise HTTPException(status_code=404, detail="找不到使用者資料")
-    await asyncio.to_thread(save_choice, student_id, data.choice)
-    pdf_data = generate_formal_pdf(user_info['name'], student_id, choice_name, submit_time)
-    if user_info and user_info.get('email'):
-        background_tasks.add_task(send_confirmation_email, user_info['email'], user_info['name'], student_id, choice_name, submit_time, pdf_data)
-    return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
+@app.post("/submit")
+async def submit(data: dict):
+    # ... 處理資料邏輯 ...
+    
+    print("DEBUG: 進入 submit 處理流程", flush=True)
+    
+    # 1. 生成 PDF
+    pdf_bytes = generate_formal_pdf(name, student_id, choice, time)
+    if not pdf_bytes:
+        return {"status": "error", "message": "PDF 生成失敗"}
+    
+    # 2. 直接發送 (拿掉 BackgroundTasks)
+    success = send_confirmation_email(email, name, student_id, choice, time, pdf_bytes)
+    
+    if success:
+        return {"status": "success", "message": "郵件已發送"}
+    else:
+        return {"status": "error", "message": "郵件發送失敗，請查看 Log"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
