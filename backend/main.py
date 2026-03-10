@@ -24,11 +24,17 @@ from backend.database import init_db, init_db_pool, save_choice, get_db, release
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
 # --- 全域設定 ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 註冊字型 (確保路徑對應你的專案根目錄下的字型檔)
+# 修正：使用 BASE_DIR 來指向 frontend 資料夾
 font_path = os.path.join(BASE_DIR, "frontend", "NotoSansTC-Regular.ttf")
-pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+
+# 註冊字型 (加上簡單的檢查)
+if os.path.exists(font_path):
+    pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+    print(f"✅ 字型註冊成功: {font_path}", flush=True)
+else:
+    print(f"❌ 警告：找不到字型檔，請確認路徑: {font_path}", flush=True)
 
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
 try:
@@ -121,7 +127,6 @@ async def submit_choice(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user)):
 
-    # 1. 檢查期限
     if datetime.now() > deadline_dt:
         raise HTTPException(status_code=403, detail="選填期限已過")
     
@@ -132,7 +137,6 @@ async def submit_choice(
     submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     choice_name = CHOICE_MAP.get(data.choice, "未知類組")
 
-    # 2. 獲取使用者資料
     def get_user_info():
         conn = get_db()
         try:
@@ -146,10 +150,8 @@ async def submit_choice(
     if not user_info:
         raise HTTPException(status_code=404, detail="找不到使用者資料")
 
-    # 3. 儲存到資料庫
     await asyncio.to_thread(save_choice, student_id, data.choice)
     
-    # 4. 生成專業 PDF (在請求處理當下生成)
     pdf_data = generate_formal_pdf(
         user_info['name'], 
         student_id, 
@@ -157,9 +159,7 @@ async def submit_choice(
         submit_time
     )
 
-    # 5. 背景寄信
     if user_info and user_info.get('email'):
-        print(f"DEBUG: 正在加入背景任務，準備寄信給 {user_info['email']}...", flush=True)
         background_tasks.add_task(
             send_confirmation_email, 
             user_info['email'], 
@@ -169,8 +169,6 @@ async def submit_choice(
             submit_time,
             pdf_data 
         )
-    else:
-        print("DEBUG: 找不到 Email, 未加入背景任務。", flush=True)
     
     return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
 
@@ -224,25 +222,19 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     finally:
         release_db(conn)
 
-# --- 靜態檔案路由 ---
 @app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
-async def read_index(): 
-    return os.path.join(BASE_DIR, "frontend", "index.html")
+async def read_index(): return os.path.join(BASE_DIR, "frontend", "index.html")
 
 @app.get("/login", response_class=FileResponse)
-async def read_login(): 
-    return os.path.join(BASE_DIR, "frontend", "login.html")
+async def read_login(): return os.path.join(BASE_DIR, "frontend", "login.html")
 
 @app.get("/choose", response_class=FileResponse)
-async def read_choose(): 
-    return os.path.join(BASE_DIR, "frontend", "choose.html")
+async def read_choose(): return os.path.join(BASE_DIR, "frontend", "choose.html")
 
 @app.get("/admin", response_class=FileResponse)
-async def read_admin(): 
-    return os.path.join(BASE_DIR, "frontend", "admin.html")
+async def read_admin(): return os.path.join(BASE_DIR, "frontend", "admin.html")
 
 @app.get("/admin-login", response_class=FileResponse)
-async def read_admin_login(): 
-    return os.path.join(BASE_DIR, "frontend", "admin-login.html")
+async def read_admin_login(): return os.path.join(BASE_DIR, "frontend", "admin-login.html")
 
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
