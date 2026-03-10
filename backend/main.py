@@ -161,6 +161,7 @@ async def submit_choice(
 
     # 5. 背景寄信 (將 PDF bytes 傳入)
     if user_info and user_info.get('email'):
+        print(f"DEBUG: 正在加入背景任務...", flush=True)
         background_tasks.add_task(
             send_confirmation_email, 
             user_info['email'], 
@@ -168,8 +169,11 @@ async def submit_choice(
             student_id, 
             choice_name,
             submit_time,
-            pdf_data # 這裡傳入剛生成的 PDF bytes
+            pdf_data 
         )
+        print("DEBUG: 背景任務已排入佇列。", flush=True)
+    else:
+        print("DEBUG: 找不到 Email，未加入背景任務。", flush=True)
     
     return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
 
