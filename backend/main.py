@@ -16,8 +16,7 @@ import io
 # PDF&寄信 相關
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from .mailer import generate_formal_pdf, send_confirmation_email
+from reportlab.pdfbase.ttfonts import TTFont 
 
 # 導入自訂模組
 from backend.mailer import send_confirmation_email, generate_formal_pdf
@@ -77,10 +76,24 @@ async def login(data: LoginData):
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
         finally: release_db(conn)
+        
     user = await asyncio.to_thread(db_logic)
-    if not user or not verify_password(data.password, user['password']): raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    
+    # 這裡必須檢查 user 是否存在，以及密碼是否正確
+    if not user or not verify_password(data.password, user['password']): 
+        raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
+    
+    # 修正：產生真實的 Token
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
-    return {"access_token": token, "role": user['role']}
+    
+    # 修正：使用 ['key'] 存取字典內容，並放入真實 token
+    return {
+        "access_token": token, 
+        "role": user['role'],
+        "name": user['name'],        # 修正這裡
+        "email": user['email'],      # 修正這裡
+        "student_id": user['student_id'] # 修正這裡
+    }
 
 @app.post("/admin-login")
 async def admin_login(data: LoginData):

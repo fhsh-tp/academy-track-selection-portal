@@ -60,9 +60,9 @@
                 
                 const payload = {
                     choice: currentChoice,
-                    name: localStorage.getItem('userName'),     
-                    student_id: localStorage.getItem('userId'),  
-                    email: localStorage.getItem('userEmail'),    
+                    name: localStorage.getItem('userName'),      // 必須對應 login.html 的 setItem('userName', ...)
+                    student_id: localStorage.getItem('userId'),  // 必須對應 login.html 的 setItem('userId', ...)
+                    email: localStorage.getItem('userEmail'),    // 必須對應 login.html 的 setItem('userEmail', ...)
                     submit_time: new Date().toISOString()
                 };
             

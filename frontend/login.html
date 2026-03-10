@@ -38,6 +38,9 @@
                 if (res.ok) {
                     localStorage.setItem('jwt_token', data.access_token);
                     localStorage.setItem('user_role', data.role);
+                    localStorage.setItem('userName', data.name);
+                    localStorage.setItem('userEmail', data.email);
+                    localStorage.setItem('userId', data.student_id);
                     
 
                     Swal.fire({
