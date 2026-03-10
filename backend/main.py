@@ -98,30 +98,12 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    # --- 這一段是關鍵：把資料從 data 拆出來 ---
-    # 假設前端傳過來的 key 分別是 name, student_id, choice, submit_time
-    # 請務必確認你的前端發送的 JSON key 名稱是否為這些
-    name = data.get("name")
-    student_id = data.get("student_id")
-    choice = data.get("choice")
-    time = data.get("submit_time")
-    email = data.get("email") # 別忘了 Email 也要拿出來
+    # 【最關鍵的一行】直接印出前端傳來的完整物件
+    print(f"DEBUG: 前端傳來的完整資料: {data}", flush=True)
     
-    print(f"DEBUG: 收到資料: {name}, {student_id}", flush=True)
-    # ----------------------------------------
-
-    # 1. 生成 PDF
-    pdf_bytes = generate_formal_pdf(name, student_id, choice, time)
-    if not pdf_bytes:
-        return {"status": "error", "message": "PDF 生成失敗"}
-    
-    # 2. 直接發送
-    success = send_confirmation_email(email, name, student_id, choice, time, pdf_bytes)
-    
-    if success:
-        return {"status": "success", "message": "郵件已發送"}
-    else:
-        return {"status": "error", "message": "郵件發送失敗，請查看 Log"}
+    # 暫時先不要進行拆解，我們直接看 log 的結果再決定
+    # 只要你看完 log，下一版程式碼我就能幫你寫對
+    return {"message": "檢查 log 即可"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
