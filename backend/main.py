@@ -13,15 +13,23 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
+# PDF 相關
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # 導入自訂模組
-from backend.mailer import send_confirmation_email
+from backend.mailer import send_confirmation_email, generate_formal_pdf
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
 # --- 全域設定 ---
-# 增加預設值，避免環境變數沒抓到時崩潰
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 註冊字型 (確保路徑對應你的專案根目錄下的字型檔)
+font_path = os.path.join(BASE_DIR, "NotoSansTC-Regular.ttf")
+pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
+
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
 try:
     deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
@@ -29,7 +37,6 @@ except:
     deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CHOICE_MAP = {
     1: "一類組 (文法商數A)",
@@ -142,26 +149,17 @@ async def submit_choice(
     # 3. 儲存到資料庫
     await asyncio.to_thread(save_choice, student_id, data.choice)
     
-    # 4. 生成 PDF (記憶體內)
-    def generate_pdf_in_memory(name, sid, choice):
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer)
-        p.drawString(100, 750, f"姓名: {name}")
-        p.drawString(100, 730, f"學號: {sid}")
-        p.drawString(100, 710, f"選填結果: {choice}")
-        p.drawString(100, 650, "學生簽名 : _____________________")
-        p.drawString(100, 620, "家長簽名 : _____________________")
-        p.drawString(100, 590, "導師簽名 : _____________________")
-        p.showPage()
-        p.save()
-        buffer.seek(0)
-        return buffer.getvalue()
+    # 4. 生成專業 PDF (在請求處理當下生成)
+    pdf_data = generate_formal_pdf(
+        user_info['name'], 
+        student_id, 
+        choice_name, 
+        submit_time
+    )
 
-    pdf_data = generate_pdf_in_memory(user_info['name'], student_id, choice_name)
-
-    # 5. 背景寄信 (將 PDF bytes 傳入)
+    # 5. 背景寄信
     if user_info and user_info.get('email'):
-        print(f"DEBUG: 正在加入背景任務...", flush=True)
+        print(f"DEBUG: 正在加入背景任務，準備寄信給 {user_info['email']}...", flush=True)
         background_tasks.add_task(
             send_confirmation_email, 
             user_info['email'], 
@@ -171,9 +169,8 @@ async def submit_choice(
             submit_time,
             pdf_data 
         )
-        print("DEBUG: 背景任務已排入佇列。", flush=True)
     else:
-        print("DEBUG: 找不到 Email，未加入背景任務。", flush=True)
+        print("DEBUG: 找不到 Email, 未加入背景任務。", flush=True)
     
     return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
 
@@ -248,5 +245,4 @@ async def read_admin():
 async def read_admin_login(): 
     return os.path.join(BASE_DIR, "frontend", "admin-login.html")
 
-# 掛載靜態資料夾 (放在所有路由最後面)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "frontend")), name="static")
