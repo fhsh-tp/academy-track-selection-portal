@@ -13,6 +13,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
+from reportlab.pdfgen import canvas
+
 # 導入自訂模組
 from backend.mailer import send_confirmation_email
 from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
@@ -116,19 +118,14 @@ async def submit_choice(
     if datetime.now() > deadline_dt:
         raise HTTPException(status_code=403, detail="選填期限已過")
     
-    # 2. 修正使用者資訊抓取 (對應 JWT 的 sub)
     student_id = current_user.get('student_id') or current_user.get('sub') 
     if not student_id:
         raise HTTPException(status_code=401, detail="無效的使用者身分")
         
     submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # 3. 儲存到資料庫 (to_thread 確保多人點擊不堵塞)
-    await asyncio.to_thread(save_choice, student_id, data.choice)
-    
-    # 4. 準備寄信資訊
     choice_name = CHOICE_MAP.get(data.choice, "未知類組")
 
+    # 2. 獲取使用者資料
     def get_user_info():
         conn = get_db()
         try:
@@ -139,8 +136,27 @@ async def submit_choice(
             release_db(conn)
 
     user_info = await asyncio.to_thread(get_user_info)
+    if not user_info:
+        raise HTTPException(status_code=404, detail="找不到使用者資料")
+
+    # 3. 儲存到資料庫
+    await asyncio.to_thread(save_choice, student_id, data.choice)
     
-    # 5. 背景寄信 (完全不佔用 Response 時間)
+    # 4. 生成 PDF (記憶體內)
+    def generate_pdf_in_memory(name, sid, choice):
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer)
+        p.drawString(100, 750, f"姓名: {name}")
+        p.drawString(100, 730, f"學號: {sid}")
+        p.drawString(100, 710, f"選填結果: {choice}")
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    pdf_data = generate_pdf_in_memory(user_info['name'], student_id, choice_name)
+
+    # 5. 背景寄信 (將 PDF bytes 傳入)
     if user_info and user_info.get('email'):
         background_tasks.add_task(
             send_confirmation_email, 
@@ -148,7 +164,8 @@ async def submit_choice(
             user_info['name'], 
             student_id, 
             choice_name,
-            submit_time
+            submit_time,
+            pdf_data # 這裡傳入剛生成的 PDF bytes
         )
     
     return {"status": "success", "message": "選填成功！確認信將發送至您的信箱。"}
