@@ -3,10 +3,16 @@ import os
 import base64
 
 def send_confirmation_email(recipient, student_name, student_id, choice_text, submit_time, pdf_bytes):
-    print(f"DEBUG: 準備觸發寄信流程，目標: {recipient}...", flush=True)
     
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
+
+    if not api_key:
+        print("🚨 致命錯誤: BREVO_API_KEY 為空值 (None)！", flush=True)
+    else:
+        # 只顯示前 5 碼確認 Key 有讀到，後面的遮蔽起來
+        masked_key = api_key[:5] + "..." + api_key[-5:] if len(api_key) > 10 else "長度異常"
+        print(f"DEBUG: 偵測到 API Key，長度: {len(api_key)}，格式: {masked_key}", flush=True)
     
     if not api_key or not sender_email:
         print("ERROR: API Key 或 Email 設定遺失！請檢查 Render 環境變數。", flush=True)
