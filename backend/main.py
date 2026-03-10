@@ -99,12 +99,17 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
+    # 除錯：確認這些欄位真的有值
+    print(f"DEBUG: 收到的 email 欄位: {data.get('email')}", flush=True)
     # 1. 抓取前端傳來的資料 (現在資料結構已經完整了)
     name = data.get("name")
     student_id = data.get("student_id")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
+
+    if not email:
+        return {"status": "error", "message": "後端沒有收到 email"}
 
     # 2. 資料轉換與處理
     choice_map = {1: "一類組 (文法商數A課程路徑)", 2: "一類組 (文法商數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
