@@ -204,7 +204,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         release_db(conn)
 
 # --- 靜態檔案路由 ---
-@app.get("/", response_class=FileResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
 async def read_index(): 
     return os.path.join(BASE_DIR, "frontend", "index.html")
 
