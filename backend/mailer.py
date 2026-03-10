@@ -16,18 +16,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # --- 關鍵修正：路徑設定 ---
 # 取得目前這個檔案 (mailer.py) 的絕對路徑
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# 往上一層回到專案根目錄，再進入 frontend 資料夾
-font_path = os.path.join(current_dir, "..", "frontend", "NotoSansTC-Regular.ttf")
-
-# 註冊字型 (加入錯誤處理，防止找不到檔案時程式崩潰)
-try:
-    if os.path.exists(font_path):
-        pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
-        print(f"✅ 字型註冊成功: {font_path}", flush=True)
-    else:
-        print(f"❌ 錯誤: 找不到字型檔於 {font_path}", flush=True)
-except Exception as e:
-    print(f"❌ 字型註冊發生錯誤: {e}", flush=True)
 
 def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     # ... (你的 generate_formal_pdf 內容保持不變，直接貼在這裡) ...

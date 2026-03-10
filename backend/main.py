@@ -27,14 +27,17 @@ from backend.security import verify_password, create_access_token, get_current_u
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 修正：使用 BASE_DIR 來指向 frontend 資料夾
-font_path = os.path.join(BASE_DIR, "frontend", "NotoSansTC-Regular.ttf")
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(current_file_dir)
+
+font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
 # 註冊字型 (加上簡單的檢查)
 if os.path.exists(font_path):
     pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
-    print(f"✅ 字型註冊成功: {font_path}", flush=True)
+    print(f"✅ [成功] 字型已註冊: {font_path}", flush=True)
 else:
-    print(f"❌ 警告：找不到字型檔，請確認路徑: {font_path}", flush=True)
+    print(f"❌ [失敗] 找不到字型檔，請檢查專案根目錄是否有 frontend/ 資料夾: {font_path}", flush=True)
 
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
 try:
