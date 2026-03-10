@@ -53,26 +53,29 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     choice_table.setStyle(TableStyle([('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'), ('GRID', (0, 0), (-1, -1), 0.5, colors.navy)]))
     elements.append(choice_table)
 
-    elements.append(Spacer(1, 40)) # 加入空間與上面的內容區隔
+    elements.append(Spacer(1, 40)) 
     
-    # 簽名區塊表格
+    # 1. 簽名區塊：只放簽名欄
     sig_data = [
-        ["學生簽名:____________________", "家長/監護人簽名:____________________","導師簽名:____________________"],
-        ["日期：       年       月       日"]
+        ["學生簽名:_____________", "家長/監護人簽名:_____________", "導師簽名:_____________"]
     ]
     
-    # colWidths 設定寬度，讓左右兩邊對齊
-    sig_table = Table(sig_data, colWidths=[240, 240])
+    # 三欄平均分配空間
+    sig_table = Table(sig_data, colWidths=[165, 165, 165])
     
-    # 設定簽名表格樣式：字型、行高、隱藏格線
     sig_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('LEADING', (0, 0), (-1, -1), 25), # 調整行距，讓字不擠在一起
+        ('LEADING', (0, 0), (-1, -1), 30), # 加大行距讓簽名空間夠
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
     ]))
     
     elements.append(sig_table)
+
+    # 2. 日期區塊：放在簽名下方
+    elements.append(Spacer(1, 20))
+    date_style = ParagraphStyle(name='DateStyle', fontName='ChineseFont', fontSize=12, alignment=0)
+    elements.append(Paragraph("日期:_______年______月______日", date_style))
     # ... (接著 doc.build(elements))
     
     doc.build(elements)
