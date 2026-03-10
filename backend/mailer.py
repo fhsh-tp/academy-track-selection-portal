@@ -13,7 +13,7 @@ from reportlab.lib import colors
 # 註冊中文字型 (確保 NotoSansTC-Regular.ttf 在專案根目錄或指定路徑)
 # 如果檔案在其他資料夾，請修改路徑，例如 'backend/NotoSansTC-Regular.ttf'
 try:
-    pdfmetrics.registerFont(TTFont('NotoSans', 'NotoSansTC-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('backend', 'NotoSansTC-Regular.ttf'))
 except Exception as e:
     print(f"DEBUG: 字型註冊失敗: {e}", flush=True)
 
