@@ -25,9 +25,7 @@
 
         function selectChoice(num) {
             currentChoice = num;
-            // 清除之前的 active 樣式
             document.querySelectorAll('.choice-box').forEach(el => el.classList.remove('active'));
-            // 加上選取的樣式
             document.getElementById('box' + num).classList.add('active');
         }
 
@@ -47,12 +45,10 @@
             });
 
             if (result.isConfirmed) {
-                // --- 核心改動：開始處理流量防護 ---
                 const btn = document.getElementById('submitBtn');
-                btn.disabled = true; // 禁用按鈕防止重複點擊
+                btn.disabled = true;
                 btn.innerText = "處理中，請稍候...";
                 
-                // 顯示一個轉圈圈，讓學生知道系統在跑，不要亂動
                 Swal.fire({
                     title: '處理中',
                     text: '正在紀錄您的選擇，請勿關閉視窗...',
@@ -61,6 +57,18 @@
                 });
 
                 const token = localStorage.getItem('jwt_token');
+                
+                const payload = {
+                    choice: currentChoice,
+                    name: localStorage.getItem('userName'),     
+                    student_id: localStorage.getItem('userId'),  
+                    email: localStorage.getItem('userEmail'),    
+                    submit_time: new Date().toISOString()
+                };
+            
+                console.log("送出的資料包:", payload);
+
+
                 try {
                     const res = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
                         method: 'POST',
@@ -68,7 +76,7 @@
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
                         },
-                        body: JSON.stringify({ choice: currentChoice })
+                        body: JSON.stringify(payload)
                     });
                     
                     if (res.ok) {
@@ -82,13 +90,11 @@
                     } else {
                         const err = await res.json();
                         Swal.fire({ icon: 'error', title: '送出失敗', text: err.detail || '請洽管理員' });
-                        // 失敗了，要把按鈕恢復
                         btn.disabled = false;
                         btn.innerText = "確認送出";
                     }
                 } catch (e) {
                     Swal.fire({ icon: 'error', title: '系統錯誤', text: '伺服器目前忙碌中，請稍後再試' });
-                    // 系統報錯也要把按鈕恢復
                     btn.disabled = false;
                     btn.innerText = "確認送出";
                 }

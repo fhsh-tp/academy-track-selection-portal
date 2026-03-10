@@ -21,7 +21,7 @@
             const sid = document.getElementById('sid').value;
             const pwd = document.getElementById('pwd').value;
             
-            // 前端簡易防呆
+
             if (!sid || !pwd) {
                 Swal.fire({ icon: 'warning', title: '請填寫完整', text: '學號與密碼皆為必填' });
                 return;
@@ -39,7 +39,7 @@
                     localStorage.setItem('jwt_token', data.access_token);
                     localStorage.setItem('user_role', data.role);
                     
-                    // 成功時的彈窗
+
                     Swal.fire({
                         icon: 'success',
                         title: '登入成功',
@@ -50,7 +50,7 @@
                         window.location.href = data.role === 'admin' ? '/admin' : '/choose';
                     });
                 } else {
-                    // 登入失敗顯示
+
                     Swal.fire({ 
                         icon: 'error', 
                         title: '登入失敗', 

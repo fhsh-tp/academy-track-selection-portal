@@ -13,10 +13,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
-# PDF 相關
+# PDF&寄信 相關
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from mailer import generate_formal_pdf, send_confirmation_email
 
 # 導入自訂模組
 from backend.mailer import send_confirmation_email, generate_formal_pdf
@@ -98,13 +99,30 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    # 【最關鍵的一行】直接印出前端傳來的完整物件
-    print(f"DEBUG: 前端傳來的完整資料: {data}", flush=True)
-    
-    # 暫時先不要進行拆解，我們直接看 log 的結果再決定
-    # 只要你看完 log，下一版程式碼我就能幫你寫對
-    return {"message": "檢查 log 即可"}
+    # 1. 抓取前端傳來的資料 (現在資料結構已經完整了)
+    name = data.get("name")
+    student_id = data.get("student_id")
+    email = data.get("email")
+    choice_num = data.get("choice")
+    submit_time = data.get("submit_time")
 
+    # 2. 資料轉換與處理
+    choice_map = {1: "一類組 (文法商數A課程路徑)", 2: "一類組 (文法商數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
+    choice_text = choice_map.get(int(choice_num), "未知類組")
+
+    # 3. 生成 PDF
+    pdf_bytes = generate_formal_pdf(name, student_id, choice_text, submit_time)
+    
+    if not pdf_bytes:
+        return {"status": "error", "message": "PDF 生成失敗"}
+
+    # 4. 發送郵件
+    success = send_confirmation_email(email, name, student_id, choice_text, submit_time, pdf_bytes)
+    
+    if success:
+        return {"status": "success", "message": "申請已送出，確認信已寄至您的信箱"}
+    else:
+        return {"status": "error", "message": "郵件寄送失敗，請稍後再試"}
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
