@@ -32,11 +32,15 @@ def send_confirmation_email(recipient, student_name, student_id, choice_text, su
     except: pass
 
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls() # 啟動安全傳輸
-            server.login(gmail_user, gmail_password)
-            server.send_message(msg)
+        # 使用 587 埠號，這在 Render 上成功率最高
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=20)
+        server.starttls() # 必須在 login 前啟動加密
+        server.login(gmail_user, gmail_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"✅ 郵件寄送成功: {recipient}")
         return True
     except Exception as e:
-        print(f"寄信失敗: {e}")
+        # 這裡的 print 非常重要，出錯時請看 Render Logs 噴出什麼
+        print(f"❌ 寄信失敗詳細原因: {str(e)}")
         return False
