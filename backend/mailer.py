@@ -1,47 +1,32 @@
-import smtplib
+import requests
 import os
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 
 def send_confirmation_email(recipient, student_name, student_id, choice_text, submit_time):
-    gmail_user = os.getenv("GMAIL_USER")
-    gmail_password = os.getenv("GMAIL_PASSWORD") # 填入 16 位密碼
-
-    if not gmail_user or not gmail_password:
-        return False
-
-    msg = MIMEMultipart()
-    msg['From'] = f"教務處選填系統 <{gmail_user}>"
-    msg['To'] = recipient
-    msg['Subject'] = f"【選填確認書】{student_name} 同學"
-
-    body = f"您好，您已於 {submit_time} 完成選填：{choice_text}。請查收附件 PDF。"
-    msg.attach(MIMEText(body, 'plain'))
-
-    # PDF 附加邏輯 (假設你有 generate_pdf)
-    try:
-        from .pdf_gen import generate_student_pdf
-        pdf_content = generate_student_pdf(student_name, student_id, choice_text, submit_time)
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(pdf_content)
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="{student_id}_confirm.pdf"')
-        msg.attach(part)
-    except: pass
+    # 從 Render 環境變數讀取 API Key
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("GMAIL_USER") # 必須與你在 Brevo 驗證過的寄件者一致
+    
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+    
+    payload = {
+        "sender": {"email": sender_email, "name": "選填系統"},
+        "to": [{"email": recipient}],
+        "subject": f"【選填確認】{student_name} 同學",
+        "textContent": f"{student_name} 同學您好，您已於 {submit_time} 完成選填：{choice_text}。"
+    }
 
     try:
-        # 強制指定一個較長的 timeout，有時候是連線太慢被斷掉
-        server = smtplib.SMTP(host='smtp.gmail.com', port=587, timeout=30)
-        server.ehlo()      # 向 Google 報到
-        server.starttls()  # 升級加密
-        server.ehlo()      # 再次報到 (TLS 之後的必要動作)
-        server.login(gmail_user, gmail_password)
-        server.send_message(msg)
-        server.quit()
-        print(f"✅ 郵件寄送成功: {recipient}")
-        return True
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 201:
+            print(f"✅ 郵件成功經由 API 寄出: {recipient}")
+            return True
+        else:
+            print(f"❌ API 寄信失敗 (Code {response.status_code}): {response.text}")
+            return False
     except Exception as e:
-        print(f"❌ 寄信失敗詳細原因: {str(e)}")
+        print(f"❌ 網路連線錯誤: {e}")
         return False
