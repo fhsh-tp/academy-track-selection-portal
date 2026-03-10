@@ -98,16 +98,24 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    # ... 處理資料邏輯 ...
+    # --- 這一段是關鍵：把資料從 data 拆出來 ---
+    # 假設前端傳過來的 key 分別是 name, student_id, choice, submit_time
+    # 請務必確認你的前端發送的 JSON key 名稱是否為這些
+    name = data.get("name")
+    student_id = data.get("student_id")
+    choice = data.get("choice")
+    time = data.get("submit_time")
+    email = data.get("email") # 別忘了 Email 也要拿出來
     
-    print("DEBUG: 進入 submit 處理流程", flush=True)
-    
+    print(f"DEBUG: 收到資料: {name}, {student_id}", flush=True)
+    # ----------------------------------------
+
     # 1. 生成 PDF
     pdf_bytes = generate_formal_pdf(name, student_id, choice, time)
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
     
-    # 2. 直接發送 (拿掉 BackgroundTasks)
+    # 2. 直接發送
     success = send_confirmation_email(email, name, student_id, choice, time, pdf_bytes)
     
     if success:
