@@ -17,7 +17,7 @@ import io
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from mailer import generate_formal_pdf, send_confirmation_email
+from .mailer import generate_formal_pdf, send_confirmation_email
 
 # 導入自訂模組
 from backend.mailer import send_confirmation_email, generate_formal_pdf
