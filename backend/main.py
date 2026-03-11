@@ -29,12 +29,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # backend/
 ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
 # 指向 frontend 裡的字型
 font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
-# 註冊字型
-try:
-    pdfmetrics.registerFont(TTFont('ChineseFont', font_path))
-    print(f"✅ main.py 字型註冊成功: {font_path}")
-except Exception as e:
-    print(f"❌ main.py 字型註冊失敗: {e}")
 
 # --- 系統設定 ---
 DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
