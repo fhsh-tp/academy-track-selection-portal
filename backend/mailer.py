@@ -114,28 +114,49 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     return buffer.getvalue()
 
 def send_confirmation_email(recipient, student_name, student_id, choice_text, submit_time, pdf_bytes):
-    # ... 寄信部分保持不變，但確保 recipient 是有效字串 ...
-    if not recipient or recipient in ["undefined", "null", "None"]:
-        print("ERROR: 收件人 email 無效", flush=True)
-        return False
-    
-    # (其餘 Brevo API 代碼)
+    # --- 關鍵：確保獲取環境變數 ---
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
-    
+
+    if not api_key or not sender_email:
+        print("❌ 錯誤：找不到 BREVO_API_KEY 或 GMAIL_USER 環境變數", flush=True)
+        return False
+
     try:
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+        
+        # 組合郵件內容
+        email_content = (
+            f"你好 {student_name}，你的志願已送出。\n\n"
+            f"學號：{student_id}\n"
+            f"選填結果：{choice_text}\n"
+            f"提交時間：{submit_time}\n\n"
+            "--------------------------------------------------\n"
+            "⚠️ 重要提醒：\n"
+            "【不要】點擊郵件的「Unsubscribe (取消訂閱)」。\n"
+            "若誤按取消訂閱，系統將無法再寄送任何選填確認信或重要通知給你。\n"
+            "--------------------------------------------------\n"
+            "請查看附件中的 PDF 確認書。"
+        )
+
         payload = {
-            "sender": {"email": sender_email, "name": "選填系統"},
+            "sender": {"email": sender_email, "name": "復興高中選填系統"},
             "to": [{"email": recipient}],
-            "subject": f"【確認信】{student_name} 的選填結果",
-            "textContent": f"你好 {student_name}，你的志願已送出。",
-            "attachment": [{"name": "確認書.pdf", "content": pdf_base64}]
+            "subject": f"【重要確認信】{student_name} 的選填結果",
+            "textContent": email_content, # 更新內文
+            "attachment": [{"name": f"{student_id}_確認書.pdf", "content": pdf_base64}]
         }
+        
         headers = {"api-key": api_key, "content-type": "application/json"}
         response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
-        return response.status_code == 201
+        
+        if response.status_code == 201:
+            print(f"✅ 郵件成功寄出至: {recipient}", flush=True)
+            return True
+        else:
+            print(f"❌ Brevo 報錯: {response.text}", flush=True)
+            return False
+            
     except Exception as e:
-        print(f"❌ 寄信失敗: {e}", flush=True)
-        return False
+        print(f"❌ 寄信發生異常: {e}", flush=True)
         return False
