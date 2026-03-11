@@ -168,8 +168,4 @@ async def read_choose(): return os.path.join(ROOT_DIR, "frontend", "choose.html"
 async def read_admin(): return os.path.join(ROOT_DIR, "frontend", "admin.html")
 @app.get("/admin-login", response_class=FileResponse)
 async def read_admin_login(): return os.path.join(ROOT_DIR, "frontend", "admin-login.html")
-<<<<<<< HEAD
-app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static")
-=======
 app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static") 
->>>>>>> ae0df8e (修正)
