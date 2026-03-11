@@ -13,19 +13,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
-# PDF&寄信 相關
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont 
-
-# 導入自訂模組
+# 導入自訂模組 (註冊字型邏輯現在統一由 mailer 處理)
 from backend.mailer import send_confirmation_email, generate_formal_pdf
-from backend.database import init_db, init_db_pool, save_choice, get_db, release_db
+from backend.database import init_db, init_db_pool, get_db, release_db
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
 
-# --- 全域路徑設定 ---
-# 獲取 main.py 所在的絕對目錄 (即 backend/)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # backend/
+# --- 路徑設定 ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
 # 指向 frontend 裡的字型
 font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
@@ -71,20 +65,18 @@ async def login(data: LoginData):
         
     user = await asyncio.to_thread(db_logic)
     
-    # 這裡必須檢查 user 是否存在，以及密碼是否正確
     if not user or not verify_password(data.password, user['password']): 
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
     
-    # 修正：產生真實的 Token
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     
-    # 修正：使用 ['key'] 存取字典內容，並放入真實 token
+    # 確保回傳正確的字典內容給前端存入 localStorage
     return {
         "access_token": token, 
         "role": user['role'],
-        "name": user['name'],        # 修正這裡
-        "email": user['email'],      # 修正這裡
-        "student_id": user['student_id'] # 修正這裡
+        "name": user['name'],        
+        "email": user['email'],      
+        "student_id": user['student_id'] 
     }
 
 @app.post("/admin-login")
