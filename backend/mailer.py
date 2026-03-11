@@ -7,9 +7,10 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.units import cm
 
 # --- 1. 修正字型路徑與註冊名稱 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
@@ -31,32 +32,83 @@ register_fonts()
 
 def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    # 設定頁邊距
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=50, bottomMargin=40)
     
-    # 【關鍵！】確認這裡的 fontName 是 'ChineseFont'，不是 'notosans'
-    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=18, alignment=1)
-    normal_style = ParagraphStyle('Normal', fontName='ChineseFont', fontSize=12)
+    styles = getSampleStyleSheet()
+    # 自定義樣式
+    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=20, leading=26, alignment=1, spaceAfter=30)
+    label_style = ParagraphStyle('Label', fontName='ChineseFont', fontSize=12, leading=18)
+    note_style = ParagraphStyle('Note', fontName='ChineseFont', fontSize=11, leading=16)
     
     elements = []
+
+    # 1. 標題
     elements.append(Paragraph("臺北市立復興高級中學", title_style))
-    elements.append(Paragraph("114學年度選填志願確認同意書", title_style))
-    elements.append(Spacer(1, 30))
+    elements.append(Paragraph("114學年度高一升高二學生選擇班群確認表", title_style))
     
-    declaration = f"學生 {student_name} (學號: {student_id}) 於 {submit_time} 完成選填，所選類組為：{choice_text}。"
-    elements.append(Paragraph(declaration, normal_style))
-    elements.append(Spacer(1, 60))
+    # 2. 學生基本資訊 (無框表格排版)
+    info_data = [[f"學號：{student_id}", f"姓名：{student_name}", f"班級座號：(請手寫填寫)"]]
+    info_table = Table(info_data, colWidths=[5*cm, 5*cm, 7*cm])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("<hr/>", styles['Normal'])) # 分隔線
+    elements.append(Spacer(1, 20))
+
+    # 3. 選填結果顯示區
+    # 這裡直接用大字體顯示結果，並加框強調
+    result_data = [
+        ["最終選填結果"],
+        [choice_text]
+    ]
+    result_table = Table(result_data, colWidths=[15*cm], rowHeights=[1*cm, 2*cm])
+    result_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
+        ('FONTSIZE', (0, 0), (0, 0), 14),
+        ('FONTSIZE', (0, 1), (0, 1), 22), # 讓選填結果字體超大
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1.5, colors.black), # 加粗框線
+        ('BACKGROUND', (0, 0), (0, 0), colors.whitesmoke), # 標題背景色
+    ]))
+    elements.append(result_table)
+    elements.append(Spacer(1, 10))
     
-    # --- 3. 修正表格內的字型 ---
-    data = [["學生簽名", "家長簽名", "導師簽名"], [" ", " ", " "]]
-    sig_table = Table(data, colWidths=[160, 160, 160], rowHeights=[30, 80])
+    # 顯示送出時間
+    elements.append(Paragraph(f"系統接收時間：{submit_time}", note_style))
+    elements.append(Spacer(1, 40))
+
+    # 4. 簽名區域
+    sig_data = [
+        [Paragraph("學生簽名:____________________", label_style), Paragraph("導師簽名:____________________", label_style)],
+        [Spacer(1, 40), Spacer(1, 40)],
+        [Paragraph("家長簽名:____________________", label_style), Paragraph("家長電話:____________________", label_style)],
+    ]
+    
+    sig_table = Table(sig_data, colWidths=[8.5*cm, 8.5*cm])
     sig_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'), # 整個表格都要指定中文字型
-        ('LINEBELOW', (0, 1), (0, 1), 1, colors.black),
-        ('LINEBELOW', (1, 1), (1, 1), 1, colors.black),
-        ('LINEBELOW', (2, 1), (2, 1), 1, colors.black),
+        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     elements.append(sig_table)
     
+    elements.append(Spacer(1, 50))
+    
+    # 5. 底部說明文字
+    footer_notes = [
+        "◎ 注意事項：",
+        "1. 請於規定時間內完成簽名，並交回各班學藝股長彙整。",
+        "2. 本表單由系統自動產生，若簽名後欲修改志願，請於截止日前上網修正並重新列印。",
+        f"3. 本文件列印於：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    ]
+    for note in footer_notes:
+        elements.append(Paragraph(note, note_style))
+
     doc.build(elements)
     return buffer.getvalue()
 
