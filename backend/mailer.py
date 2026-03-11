@@ -11,6 +11,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+from datetime import datetime
 
 # --- 1. 修正字型路徑與註冊名稱 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
