@@ -11,26 +11,30 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 # --- 1. 修正字型路徑與註冊名稱 ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # backend/
-ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
+ROOT_DIR = os.path.dirname(BASE_DIR)
 # 確保指向 frontend/NotoSansTC-Regular.ttf
 FONT_PATH = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
+
 # 這裡的名稱 'ChineseFont' 就是之後所有 Style 要用的 fontName
-try:
-    pdfmetrics.registerFont(TTFont('ChineseFont', FONT_PATH))
-    print(f"✅ 字型註冊成功: {FONT_PATH}", flush=True)
-except Exception as e:
-    print(f"❌ 字型註冊失敗: {e}", flush=True)
+def register_fonts():
+    try:
+        # 註冊為 'ChineseFont'
+        pdfmetrics.registerFont(TTFont('ChineseFont', FONT_PATH))
+        print(f"✅ 字型註冊成功: {FONT_PATH}", flush=True)
+    except Exception as e:
+        print(f"❌ 字型註冊失敗: {e}", flush=True)
+
+register_fonts()
 
 def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
     
-    # --- 2. 修正樣式中的 fontName ---
-    # 這裡的 fontName 必須與上面 registerFont 的第一個參數完全一致
-    normal_style = ParagraphStyle('Normal', fontName='ChineseFont', fontSize=12, leading=18)
-    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=18, leading=22, alignment=1)
+    # 【關鍵！】確認這裡的 fontName 是 'ChineseFont'，不是 'notosans'
+    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=18, alignment=1)
+    normal_style = ParagraphStyle('Normal', fontName='ChineseFont', fontSize=12)
     
     elements = []
     elements.append(Paragraph("臺北市立復興高級中學", title_style))
