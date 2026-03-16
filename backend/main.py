@@ -109,7 +109,7 @@ async def submit(data: dict):
         return {"status": "error", "message": "後端沒有收到 email"}
 
     # 2. 資料轉換與處理
-    choice_map = {1: "一類組 (文法商數A課程路徑)", 2: "一類組 (文法商數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
+    choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
     # 3. 生成 PDF

@@ -88,7 +88,8 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     sig_data = [
         [Paragraph("學生簽名:____________________", label_style), Paragraph("導師簽名:____________________", label_style)],
         [Spacer(1, 40), Spacer(1, 40)],
-        [Paragraph("家長簽名:____________________", label_style), Paragraph("家長電話:____________________", label_style)],
+        [Paragraph("家長簽名:____________________", label_style)],
+        [Paragraph("家長電話:____________________", label_style)]
     ]
     
     sig_table = Table(sig_data, colWidths=[8.5*cm, 8.5*cm])
@@ -103,9 +104,9 @@ def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
     # 5. 底部說明文字
     footer_notes = [
         "◎ 注意事項：",
-        "1. 請於規定時間內完成簽名，並交回各班學藝股長彙整。",
+        "1. 請於規定時間內(5月4日)前完成簽名，並交回班上的學藝股長彙整。",
         "2. 本表單由系統自動產生，若簽名後欲修改志願，請於截止日前上網修正並重新列印。",
-        f"3. 本文件列印於：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        f"3. 本文件產生於：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     ]
     for note in footer_notes:
         elements.append(Paragraph(note, note_style))
