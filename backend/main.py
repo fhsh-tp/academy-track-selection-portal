@@ -147,8 +147,22 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         cur = conn.cursor()
         for row in reader:
             hashed_pw = get_password_hash(row.get('password', '123456').strip())
-            cur.execute("INSERT INTO users (student_id, name, email, studen_class_num, password, role) VALUES (%s, %s, %s, %s, %s, 'student') ...", 
-                        (row['student_id'], row['name'], row['email'], row['studen_class_num'], hashed_pw))
+            # --- 修正後的 SQL 語句，確保沒有 ... 符號且包含班級座號 ---
+            cur.execute("""
+                INSERT INTO users (student_id, name, email, studen_class_num, password, role) 
+                VALUES (%s, %s, %s, %s, %s, 'student') 
+                ON CONFLICT (student_id) DO UPDATE SET 
+                    name = EXCLUDED.name, 
+                    email = EXCLUDED.email, 
+                    studen_class_num = EXCLUDED.studen_class_num,
+                    password = EXCLUDED.password
+            """, (
+                row['student_id'], 
+                row['name'], 
+                row['email'], 
+                row.get('studen_class_num', ''), 
+                hashed_pw
+            ))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}
