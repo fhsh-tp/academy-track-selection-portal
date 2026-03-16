@@ -13,7 +13,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
 
-# 導入自訂模組 (註冊字型邏輯現在統一由 mailer 處理)
+# 導入自訂模組
 from backend.mailer import send_confirmation_email, generate_formal_pdf
 from backend.database import init_db, init_db_pool, get_db, release_db
 from backend.security import verify_password, create_access_token, get_current_user, get_password_hash
@@ -21,7 +21,6 @@ from backend.security import verify_password, create_access_token, get_current_u
 # --- 路徑設定 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
-# 指向 frontend 裡的字型
 font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
 # --- 系統設定 ---
@@ -70,7 +69,6 @@ async def login(data: LoginData):
     
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     
-    # 確保回傳正確的字典內容給前端存入 localStorage
     return {
         "access_token": token, 
         "role": user['role'],
@@ -96,35 +94,35 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    # 除錯：確認這些欄位真的有值
     print(f"DEBUG: 收到的 email 欄位: {data.get('email')}", flush=True)
-    # 1. 抓取前端傳來的資料 (現在資料結構已經完整了)
     name = data.get("name")
     student_id = data.get("student_id")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
+    # 這裡從前端獲取班級座號資訊，若前端無傳入則預設為空字串
+    studen_class_num = data.get("studen_class_num", "未填寫")
 
     if not email:
         return {"status": "error", "message": "後端沒有收到 email"}
 
-    # 2. 資料轉換與處理
     choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
-    # 3. 生成 PDF
-    pdf_bytes = generate_formal_pdf(name, student_id, choice_text, submit_time)
+    # 修正：傳入 5 個參數給 generate_formal_pdf
+    pdf_bytes = generate_formal_pdf(name, student_id, studen_class_num, int(choice_num), submit_time)
     
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
 
-    # 4. 發送郵件
-    success = send_confirmation_email(email, name, student_id, choice_text, submit_time, pdf_bytes)
+    # 修正：傳入對應參數給 send_confirmation_email
+    success = send_confirmation_email(email, name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes)
     
     if success:
         return {"status": "success", "message": "申請已送出，確認信已寄至您的信箱"}
     else:
         return {"status": "error", "message": "郵件寄送失敗，請稍後再試"}
+
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
@@ -157,7 +155,6 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
     finally: release_db(conn)
 
-# 靜態檔案路由
 @app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
 async def read_index(): return os.path.join(ROOT_DIR, "frontend", "index.html")
 @app.get("/login", response_class=FileResponse)
@@ -168,4 +165,4 @@ async def read_choose(): return os.path.join(ROOT_DIR, "frontend", "choose.html"
 async def read_admin(): return os.path.join(ROOT_DIR, "frontend", "admin.html")
 @app.get("/admin-login", response_class=FileResponse)
 async def read_admin_login(): return os.path.join(ROOT_DIR, "frontend", "admin-login.html")
-app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static") 
+app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static")

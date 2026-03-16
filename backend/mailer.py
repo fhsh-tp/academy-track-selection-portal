@@ -1,4 +1,3 @@
-
 import requests
 import os
 import base64
@@ -16,14 +15,10 @@ from datetime import datetime
 # --- 1. 修正字型路徑與註冊名稱 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 ROOT_DIR = os.path.dirname(BASE_DIR)
-# 確保指向 frontend/NotoSansTC-Regular.ttf
 FONT_PATH = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
-
-# 這裡的名稱 'ChineseFont' 就是之後所有 Style 要用的 fontName
 def register_fonts():
     try:
-        # 註冊為 'ChineseFont'
         pdfmetrics.registerFont(TTFont('ChineseFont', FONT_PATH))
         print(f"✅ 字型註冊成功: {FONT_PATH}", flush=True)
     except Exception as e:
@@ -32,7 +27,7 @@ def register_fonts():
 register_fonts()
 
 def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, submit_time):
-    # choice_num: 1, 2, 3, 4
+    # 確保參數包含 studen_class_num 並顯示在資訊列
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
     
@@ -46,14 +41,13 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     # 1. 標題
     elements.append(Paragraph("臺北市立復興高級中學高一升高二普通班學生選擇班群表", title_style))
     
-    # 2. 學生資訊列
-    # (班級與座號需視後端資料傳入，此處先以佔位符呈現)
+    # 2. 學生資訊列 (包含班級座號)
     info_data = [[f"班級座號：{studen_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
-    info_table = Table(info_data, colWidths=[3*cm, 3*cm, 5*cm, 5*cm])
+    info_table = Table(info_data, colWidths=[6*cm, 5*cm, 6*cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
     ]))
     elements.append(info_table)
     elements.append(Spacer(1, 15))
@@ -81,14 +75,13 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('SPAN', (0, 2), (3, 2)), 
-        ('FONTSIZE', (1, 1), (4, 1), 22), # 讓勾選的 V 醒目
+        ('FONTSIZE', (1, 1), (4, 1), 22), 
     ]))
     elements.append(choice_table)
     
-    # 調整垂直間距，移除印章後讓簽名欄位置稍微上移
     elements.append(Spacer(1, 30))
 
-    # 4. 簽名區域與右側注意事項 (與圖片一致)
+    # 4. 簽名區域與右側注意事項
     sig_data = [
         [Paragraph("學生簽名：____________________", note_style), Paragraph("導師簽名：____________________", note_style)],
         [Spacer(1, 35), Spacer(1, 35)],
@@ -108,7 +101,7 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     return buffer.getvalue()
 
 def send_confirmation_email(recipient, student_name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes):
-    # --- 關鍵：確保獲取環境變數 ---
+    # 確保參數包含 studen_class_num 並獲取環境變數
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
 
@@ -119,9 +112,9 @@ def send_confirmation_email(recipient, student_name, student_id, studen_class_nu
     try:
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
         
-        # 組合郵件內容
         email_content = (
             f"你好 {student_name}，你的志願已送出。\n\n"
+            f"班級座號：{studen_class_num}\n"
             f"學號：{student_id}\n"
             f"選填結果：{choice_text}\n"
             f"提交時間：{submit_time}\n\n"
@@ -137,7 +130,7 @@ def send_confirmation_email(recipient, student_name, student_id, studen_class_nu
             "sender": {"email": sender_email, "name": "復興高中選填系統"},
             "to": [{"email": recipient}],
             "subject": f"【重要確認信】{student_name} 的選填結果",
-            "textContent": email_content, # 更新內文
+            "textContent": email_content,
             "attachment": [{"name": f"{student_id}_確認書.pdf", "content": pdf_base64}]
         }
         
