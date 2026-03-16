@@ -43,14 +43,33 @@ def init_db():
     conn = get_db()
     try:
         cur = conn.cursor()
+        # 1. 建立基礎表格
         cur.execute("CREATE TABLE IF NOT EXISTS users (student_id TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT DEFAULT 'student', email TEXT)")
         cur.execute("CREATE TABLE IF NOT EXISTS selections (student_id TEXT PRIMARY KEY REFERENCES users(student_id), choice INTEGER NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
-        # 管理員邏輯
+        
+        # 2. 【關鍵：用程式自動灌入欄位】
+        # 檢查 users 表格是否有 studen_class_num 欄位，沒有就補上
+        cur.execute("""
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                               WHERE table_name='users' AND column_name='studen_class_num') THEN
+                    ALTER TABLE users ADD COLUMN studen_class_num TEXT;
+                END IF;
+            END $$;
+        """)
+
+        # 3. 管理員邏輯
         admin_pw = os.getenv("ADMIN_PASSWORD")
         if admin_pw:
             hashed_pw = get_password_hash(admin_pw)
             cur.execute("INSERT INTO users (student_id, name, password, role) VALUES ('admin', '管理員', %s, 'admin') ON CONFLICT DO NOTHING", (hashed_pw,))
+        
         conn.commit()
         cur.close()
+        print("✅ 資料庫初始化與欄位檢查完成")
+    except Exception as e:
+        print(f"❌ 資料庫初始化失敗: {e}")
+        conn.rollback() # 發生錯誤時回滾
     finally:
         release_db(conn)
