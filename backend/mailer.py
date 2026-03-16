@@ -65,7 +65,7 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     choice_table_data = [
         ["班群", "文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
         ["勾選", v1, v2, v3, v4],
-        [f"勾選時間：{submit_time}", "", "", "", f"列印時間：{print_time}"]
+        [f"勾選時間：{submit_time}", "", "", f"列印時間：{print_time}", ""] # 重新排列時間位置
     ]
     
     w = 17.5 * cm / 5
@@ -78,9 +78,10 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
         ('BOX', (0, 2), (-1, 2), 1, colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('SPAN', (0, 2), (2, 2)),  # 勾選時間佔據前三格
-        ('SPAN', (3, 2), (4, 2)),  # 列印時間佔據後兩格
-        ('FONTSIZE', (0, 2), (-1, 2), 9), # 縮小時間列字體防止溢出
+        # 修正：勾選時間佔據前三格，列印時間佔據後兩格
+        ('SPAN', (0, 2), (2, 2)),  
+        ('SPAN', (3, 2), (4, 2)),  
+        ('FONTSIZE', (0, 2), (-1, 2), 9), 
         ('FONTSIZE', (1, 1), (4, 1), 22), 
     ]))
     elements.append(choice_table)
