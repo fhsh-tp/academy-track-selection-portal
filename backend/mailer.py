@@ -31,7 +31,7 @@ def register_fonts():
 
 register_fonts()
 
-def generate_formal_pdf(student_name, student_id, choice_num, submit_time):
+def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, submit_time):
     # choice_num: 1, 2, 3, 4
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
@@ -48,7 +48,7 @@ def generate_formal_pdf(student_name, student_id, choice_num, submit_time):
     
     # 2. 學生資訊列
     # (班級與座號需視後端資料傳入，此處先以佔位符呈現)
-    info_data = [[f"班級：____", f"座號：____", f"學號：{student_id}", f"姓名：{student_name}"]]
+    info_data = [[f"班級座號：{studen_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
     info_table = Table(info_data, colWidths=[3*cm, 3*cm, 5*cm, 5*cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
@@ -107,7 +107,7 @@ def generate_formal_pdf(student_name, student_id, choice_num, submit_time):
     doc.build(elements)
     return buffer.getvalue()
 
-def send_confirmation_email(recipient, student_name, student_id, choice_text, submit_time, pdf_bytes):
+def send_confirmation_email(recipient, student_name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes):
     # --- 關鍵：確保獲取環境變數 ---
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
