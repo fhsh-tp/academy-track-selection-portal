@@ -32,7 +32,7 @@ except:
     deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
-CHOICE_MAP = {1: "一類組 (文法商數A)", 2: "一類組 (文法商數B)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
+CHOICE_MAP = {1: "一類組 (文法商數A)", 2: "一類組 (文法商數B)", 3: "理工資", 4: "生醫農"}
 
 # --- 生命周期管理 ---
 @asynccontextmanager
