@@ -31,85 +31,78 @@ def register_fonts():
 
 register_fonts()
 
-def generate_formal_pdf(student_name, student_id, choice_text, submit_time):
+def generate_formal_pdf(student_name, student_id, choice_num, submit_time):
+    # choice_num: 1, 2, 3, 4
     buffer = io.BytesIO()
-    # 設定頁邊距
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=50, bottomMargin=40)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
     
     styles = getSampleStyleSheet()
-    # 自定義樣式
-    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=20, leading=26, alignment=1, spaceAfter=30)
-    label_style = ParagraphStyle('Label', fontName='ChineseFont', fontSize=12, leading=18)
+    title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=20, leading=24, alignment=1, spaceAfter=20)
+    info_style = ParagraphStyle('Info', fontName='ChineseFont', fontSize=12)
     note_style = ParagraphStyle('Note', fontName='ChineseFont', fontSize=11, leading=16)
     
     elements = []
 
     # 1. 標題
-    elements.append(Paragraph("臺北市立復興高級中學", title_style))
-    elements.append(Paragraph("114學年度高一升高二學生選擇班群確認表", title_style))
+    elements.append(Paragraph("臺北市立復興高級中學高一升高二普通班學生選擇班群表", title_style))
     
-    # 2. 學生基本資訊 (無框表格排版)
-    info_data = [[f"學號：{student_id}", f"姓名：{student_name}", f"班級座號：(請手寫填寫)"]]
-    info_table = Table(info_data, colWidths=[5*cm, 5*cm, 7*cm])
+    # 2. 學生資訊列
+    # (班級與座號需視後端資料傳入，此處先以佔位符呈現)
+    info_data = [[f"班級：____", f"座號：____", f"學號：{student_id}", f"姓名：{student_name}"]]
+    info_table = Table(info_data, colWidths=[3*cm, 3*cm, 5*cm, 5*cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
     elements.append(info_table)
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("<hr/>", styles['Normal'])) # 分隔線
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 15))
 
-    # 3. 選填結果顯示區
-    # 這裡直接用大字體顯示結果，並加框強調
-    result_data = [
-        ["最終選填結果"],
-        [choice_text]
+    # 3. 選填表格 (自動畫勾)
+    v1, v2, v3, v4 = "", "", "", ""
+    if choice_num == 1: v1 = "V"
+    elif choice_num == 2: v2 = "V"
+    elif choice_num == 3: v3 = "V"
+    elif choice_num == 4: v4 = "V"
+
+    choice_table_data = [
+        ["班群", "文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
+        ["勾選", v1, v2, v3, v4],
+        [f"勾選時間：{submit_time}", "", "", "", f"列印時間：{datetime.now().strftime('%Y/%m/%d %H:%M:%S')}"]
     ]
-    result_table = Table(result_data, colWidths=[15*cm], rowHeights=[1*cm, 2*cm])
-    result_table.setStyle(TableStyle([
+    
+    w = 17.5 * cm / 5
+    choice_table = Table(choice_table_data, colWidths=[w, w, w, w, w], rowHeights=[1.2*cm, 1.5*cm, 0.8*cm])
+    
+    choice_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
-        ('FONTSIZE', (0, 0), (0, 0), 14),
-        ('FONTSIZE', (0, 1), (0, 1), 22), # 讓選填結果字體超大
+        ('GRID', (0, 0), (-1, 1), 1, colors.black),
+        ('BOX', (0, 2), (-1, 2), 1, colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 1.5, colors.black), # 加粗框線
-        ('BACKGROUND', (0, 0), (0, 0), colors.whitesmoke), # 標題背景色
+        ('SPAN', (0, 2), (3, 2)), 
+        ('FONTSIZE', (1, 1), (4, 1), 22), # 讓勾選的 V 醒目
     ]))
-    elements.append(result_table)
-    elements.append(Spacer(1, 10))
+    elements.append(choice_table)
     
-    # 顯示送出時間
-    elements.append(Paragraph(f"系統接收時間：{submit_time}", note_style))
-    elements.append(Spacer(1, 40))
+    # 調整垂直間距，移除印章後讓簽名欄位置稍微上移
+    elements.append(Spacer(1, 30))
 
-    # 4. 簽名區域
+    # 4. 簽名區域與右側注意事項 (與圖片一致)
     sig_data = [
-        [Paragraph("學生簽名:____________________", label_style), Paragraph("導師簽名:____________________", label_style)],
-        [Spacer(1, 40), Spacer(1, 40)],
-        [Paragraph("家長簽名:____________________", label_style)],
-        [Paragraph("家長電話:____________________", label_style)]
+        [Paragraph("學生簽名：____________________", note_style), Paragraph("導師簽名：____________________", note_style)],
+        [Spacer(1, 35), Spacer(1, 35)],
+        [Paragraph("家長簽名：____________________", note_style), Paragraph("◎請於5月5日前完成簽名、交給學藝股長彙整。", note_style)],
+        [Spacer(1, 35), Spacer(1, 35)],
+        [Paragraph("家長電話：____________________", note_style), Paragraph("◎若更改選擇，請於期限內上網修正，重新列印簽名", note_style)]
     ]
     
-    sig_table = Table(sig_data, colWidths=[8.5*cm, 8.5*cm])
+    sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
     sig_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     elements.append(sig_table)
-    
-    elements.append(Spacer(1, 50))
-    
-    # 5. 底部說明文字
-    footer_notes = [
-        "◎ 注意事項：",
-        "1. 請於規定時間內(5月4日)前完成簽名，並交回班上的學藝股長彙整。",
-        "2. 本表單由系統自動產生，若簽名後欲修改志願，請於截止日前上網修正並重新列印。",
-        f"3. 本文件產生於：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    ]
-    for note in footer_notes:
-        elements.append(Paragraph(note, note_style))
 
     doc.build(elements)
     return buffer.getvalue()
