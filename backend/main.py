@@ -74,7 +74,8 @@ async def login(data: LoginData):
         "role": user['role'],
         "name": user['name'],        
         "email": user['email'],      
-        "student_id": user['student_id'] 
+        "student_id": user['student_id'],
+        "studen_class_num": user.get('studen_class_num', "未填寫")
     }
 
 @app.post("/admin-login")
