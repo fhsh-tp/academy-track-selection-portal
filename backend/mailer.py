@@ -27,13 +27,12 @@ def register_fonts():
 register_fonts()
 
 def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, submit_time):
-    # 確保參數包含 studen_class_num 並顯示在資訊列
     buffer = io.BytesIO()
+    # 設定頁面邊距
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
     
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=20, leading=24, alignment=1, spaceAfter=20)
-    info_style = ParagraphStyle('Info', fontName='ChineseFont', fontSize=12)
     note_style = ParagraphStyle('Note', fontName='ChineseFont', fontSize=11, leading=16)
     
     elements = []
@@ -41,9 +40,10 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     # 1. 標題
     elements.append(Paragraph("臺北市立復興高級中學高一升高二普通班學生選擇班群表", title_style))
     
-    # 2. 學生資訊列 (包含班級座號)
+    # 2. 學生資訊列 - 調整欄寬確保班級座號顯示
     info_data = [[f"班級座號：{studen_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
-    info_table = Table(info_data, colWidths=[6*cm, 5*cm, 6*cm])
+    # 增加第一欄寬度
+    info_table = Table(info_data, colWidths=[6.5*cm, 5*cm, 6*cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
         ('FONTSIZE', (0, 0), (-1, -1), 12),
@@ -52,20 +52,24 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     elements.append(info_table)
     elements.append(Spacer(1, 15))
 
-    # 3. 選填表格 (自動畫勾)
+    # 3. 選填表格
     v1, v2, v3, v4 = "", "", "", ""
     if choice_num == 1: v1 = "V"
     elif choice_num == 2: v2 = "V"
     elif choice_num == 3: v3 = "V"
     elif choice_num == 4: v4 = "V"
 
+    # 解決時間溢出問題：將時間列獨立處理，並縮小字體
+    print_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+    
     choice_table_data = [
         ["班群", "文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
         ["勾選", v1, v2, v3, v4],
-        [f"勾選時間：{submit_time}", "", "", "", f"列印時間：{datetime.now().strftime('%Y/%m/%d %H:%M:%S')}"]
+        [f"勾選時間：{submit_time}", "", "", "", f"列印時間：{print_time}"]
     ]
     
     w = 17.5 * cm / 5
+    # 設定時間列的高度較小
     choice_table = Table(choice_table_data, colWidths=[w, w, w, w, w], rowHeights=[1.2*cm, 1.5*cm, 0.8*cm])
     
     choice_table.setStyle(TableStyle([
@@ -74,14 +78,16 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
         ('BOX', (0, 2), (-1, 2), 1, colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('SPAN', (0, 2), (3, 2)), 
+        ('SPAN', (0, 2), (2, 2)),  # 勾選時間佔據前三格
+        ('SPAN', (3, 2), (4, 2)),  # 列印時間佔據後兩格
+        ('FONTSIZE', (0, 2), (-1, 2), 9), # 縮小時間列字體防止溢出
         ('FONTSIZE', (1, 1), (4, 1), 22), 
     ]))
     elements.append(choice_table)
     
-    elements.append(Spacer(1, 30))
+    elements.append(Spacer(1, 35))
 
-    # 4. 簽名區域與右側注意事項
+    # 4. 簽名區域
     sig_data = [
         [Paragraph("學生簽名：____________________", note_style), Paragraph("導師簽名：____________________", note_style)],
         [Spacer(1, 35), Spacer(1, 35)],
@@ -101,12 +107,10 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     return buffer.getvalue()
 
 def send_confirmation_email(recipient, student_name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes):
-    # 確保參數包含 studen_class_num 並獲取環境變數
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
 
     if not api_key or not sender_email:
-        print("❌ 錯誤：找不到 BREVO_API_KEY 或 GMAIL_USER 環境變數", flush=True)
         return False
 
     try:
@@ -136,13 +140,7 @@ def send_confirmation_email(recipient, student_name, student_id, studen_class_nu
         
         headers = {"api-key": api_key, "content-type": "application/json"}
         response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
-        
-        if response.status_code == 201:
-            print(f"✅ 郵件成功寄出至: {recipient}", flush=True)
-            return True
-        else:
-            print(f"❌ Brevo 報錯: {response.text}", flush=True)
-            return False
+        return response.status_code == 201
             
     except Exception as e:
         print(f"❌ 寄信發生異常: {e}", flush=True)
