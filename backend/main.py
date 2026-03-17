@@ -142,6 +142,8 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     try:
         cur = conn.cursor()
         for row in reader:
+            raw_class_num = row.get('student_class_num')
+            print(f"DEBUG: 正在處理學生 {row.get('name')}, 抓取到的座號: '{raw_class_num}'", flush=True)
             hashed_pw = get_password_hash(row.get('password').strip())
             # 增加 studen_class_num 欄位的寫入
             cur.execute("""
