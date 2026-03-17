@@ -143,7 +143,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         cur = conn.cursor()
         for row in reader:
             raw_class_num = row.get('student_class_num')
-            print(f"DEBUG: 正在處理學生 {row.get('name')}, 抓取到的座號: '{raw_class_num}'", flush=True)
+            print(f"--- 正在處理: {row['name']} | 座號: {row.get('student_class_num')} ---")
             hashed_pw = get_password_hash(row.get('password').strip())
             # 增加 studen_class_num 欄位的寫入
             cur.execute("""
@@ -154,7 +154,8 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
                     email = EXCLUDED.email, 
                     student_class_num = EXCLUDED.student_class_num,
                     password = EXCLUDED.password
-            """, (row['student_id'], row['name'], row['email'], row.get('student_class_num', ''), hashed_pw))
+                    -- 這裡沒有更新日期欄位，所以它會一直停在舊的時間！
+            """, (...))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}
