@@ -143,16 +143,17 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         cur = conn.cursor()
         for row in reader:
             # 去除欄位名稱空格，防止 student_class_num 讀不到
-            row = {k.strip(): v for k, v in row.items()}
+            row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
             
             student_id = row.get('student_id')
             name = row.get('name')
             email = row.get('email')
-            class_num = row.get('student_class_num') or row.get('studen_class_num') or ''
+            class_num = row.get('student_class_num') or row.get('studen_class_num')
             
             print(f"DEBUG: 正在處理: {name} | 座號: {class_num}")
             
             password_val = row.get('password')
+            print(f"DEBUG: 學生 {name} ({student_id}) 的原始密碼為: [{password_val}]", flush=True)
             hashed_pw = get_password_hash(str(password_val).strip())
 
             # 修正：SQL 指令後方必須補上對應的資料參數
