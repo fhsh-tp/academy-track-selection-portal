@@ -142,7 +142,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     try:
         cur = conn.cursor()
         for row in reader:
-            hashed_pw = get_password_hash(row.get('password', '123456').strip())
+            hashed_pw = get_password_hash(row.get('password').strip())
             # 增加 studen_class_num 欄位的寫入
             cur.execute("""
                 INSERT INTO users (student_id, name, email, student_class_num, password, role) 

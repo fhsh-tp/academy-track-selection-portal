@@ -52,7 +52,7 @@ def init_db():
             DO $$ 
             BEGIN 
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                            WHERE table_name='users' AND column_name='studen_class_num') THEN
+                            WHERE table_name='users' AND column_name='student_class_num') THEN
                     ALTER TABLE users ADD COLUMN student_class_num TEXT;
                 END IF;
             END $$;
