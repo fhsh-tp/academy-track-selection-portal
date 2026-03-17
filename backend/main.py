@@ -98,7 +98,7 @@ async def submit(data: dict):
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
     # 這裡從前端獲取班級座號資訊，若前端無傳入則預設為空字串
-    studen_class_num = data.get("student_class_num", "")
+    student_class_num = data.get("student_class_num", "")
 
     if not email:
         return {"status": "error", "message": "後端沒有收到 email"}
