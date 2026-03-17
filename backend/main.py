@@ -91,35 +91,56 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    print(f"DEBUG: 收到的 email 欄位: {data.get('email')}", flush=True)
+    # 1. 取得資料
     name = data.get("name")
     student_id = data.get("student_id")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
-
-    # 這裡絕對使用 student_class_num (有 t)
     student_class_num = data.get("student_class_num", "")
 
     if not email:
         return {"status": "error", "message": "後端沒有收到 email"}
 
+    # 2. 【關鍵】寫入資料庫，管理員才看得到
+    def db_save():
+        conn = get_db()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO selections (student_id, choice, updated_at)
+                VALUES (%s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (student_id) 
+                DO UPDATE SET choice = EXCLUDED.choice, updated_at = CURRENT_TIMESTAMP
+            """, (student_id, choice_num))
+            conn.commit()
+            cur.close()
+            return True
+        except Exception as e:
+            print(f"❌ 資料庫儲存失敗: {e}")
+            return False
+        finally:
+            release_db(conn)
+
+    db_success = await asyncio.to_thread(db_save)
+    if not db_success:
+        raise HTTPException(status_code=500, detail="資料庫紀錄失敗")
+
+    # 3. 寄信與產生 PDF
     choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
-    # 傳入 5 個參數給 generate_formal_pdf，變數名稱絕對一致
     pdf_bytes = generate_formal_pdf(name, student_id, student_class_num, int(choice_num), submit_time)
     
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
 
-    # 傳入對應參數給 send_confirmation_email，變數名稱絕對一致
     success = send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
     
     if success:
-        return {"status": "success", "message": "申請已送出，確認信已寄至您的信箱"}
+        return {"status": "success", "message": "申請已送出，確認信已寄達"}
     else:
-        return {"status": "error", "message": "郵件寄送失敗，請稍後再試"}
+        return {"status": "error", "message": "郵件寄送失敗，但資料已存檔"}
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):

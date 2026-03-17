@@ -58,14 +58,16 @@
 
                 const token = localStorage.getItem('jwt_token');
                 
+                // 在 submitChoice 函式內修改
                 const payload = {
                     choice: currentChoice,
-                    name: localStorage.getItem('userName'),      // 必須對應 login.html 的 setItem('userName', ...)
-                    student_id: localStorage.getItem('userId'),  // 必須對應 login.html 的 setItem('userId', ...)
-                    email: localStorage.getItem('userEmail'),    // 必須對應 login.html 的 setItem('userEmail', ...)
+                    name: localStorage.getItem('userName'),
+                    student_id: localStorage.getItem('userId'),
+                    email: localStorage.getItem('userEmail'),
+                    // 【修正】必須從 localStorage 抓取座號傳給後端
+                    student_class_num: localStorage.getItem('user_class_num') || "未填寫", 
                     submit_time: new Date().toISOString()
                 };
-            
                 console.log("送出的資料包:", payload);
 
 
