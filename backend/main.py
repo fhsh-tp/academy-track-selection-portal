@@ -91,14 +91,15 @@ async def admin_login(data: LoginData):
 
 @app.post("/submit")
 async def submit(data: dict):
-    # 1. 直接從 data 裡面抓，不要先賦值再引用，這樣最安全
-    s_class = data.get("student_class_num") or data.get("studen_class_num") or "未填寫"
-    
+    print(f"DEBUG: 收到的 email 欄位: {data.get('email')}", flush=True)
     name = data.get("name")
     student_id = data.get("student_id")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
+
+    # 這裡絕對使用 student_class_num (有 t)
+    student_class_num = data.get("student_class_num", "")
 
     if not email:
         return {"status": "error", "message": "後端沒有收到 email"}
@@ -106,11 +107,19 @@ async def submit(data: dict):
     choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
-    # 2. 這裡直接傳入 s_class
-    pdf_bytes = generate_formal_pdf(name, student_id, s_class, int(choice_num), submit_time)
+    # 傳入 5 個參數給 generate_formal_pdf，變數名稱絕對一致
+    pdf_bytes = generate_formal_pdf(name, student_id, student_class_num, int(choice_num), submit_time)
     
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
+
+    # 傳入對應參數給 send_confirmation_email，變數名稱絕對一致
+    success = send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
+    
+    if success:
+        return {"status": "success", "message": "申請已送出，確認信已寄至您的信箱"}
+    else:
+        return {"status": "error", "message": "郵件寄送失敗，請稍後再試"}
 
     # 3. 這裡也直接傳入 s_class
     success = send_confirmation_email(email, name, student_id, s_class, choice_text, submit_time, pdf_bytes)
@@ -148,7 +157,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
             student_id = row.get('student_id')
             name = row.get('name')
             email = row.get('email')
-            class_num = row.get('student_class_num') or row.get('studen_class_num')
+            student_class_num = row.get('student_class_num', "")
             
             print(f"DEBUG: 正在處理: {name} | 座號: {class_num}")
             
@@ -160,17 +169,9 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
                 INSERT INTO users (student_id, name, email, student_class_num, password, role) 
                 VALUES (%s, %s, %s, %s, %s, 'student') 
                 ON CONFLICT (student_id) DO UPDATE SET 
-                    name = EXCLUDED.name, 
-                    email = EXCLUDED.email, 
-                    student_class_num = EXCLUDED.student_class_num,
+                    student_class_num = EXCLUDED.student_class_num, # 這裡
                     password = EXCLUDED.password
-            """, (
-                student_id,
-                name,
-                email,
-                class_num,
-                hashed_pw
-            ))
+            """, (student_id, name, email, student_class_num, hashed_pw))
             
         conn.commit()
         cur.close()
