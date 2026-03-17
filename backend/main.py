@@ -142,10 +142,20 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
     try:
         cur = conn.cursor()
         for row in reader:
-            raw_class_num = row.get('student_class_num')
-            print(f"--- 正在處理: {row['name']} | 座號: {row.get('student_class_num')} ---")
-            hashed_pw = get_password_hash(row.get('password').strip())
-            # 增加 studen_class_num 欄位的寫入
+            # 去除欄位名稱空格，防止 student_class_num 讀不到
+            row = {k.strip(): v for k, v in row.items()}
+            
+            student_id = row.get('student_id')
+            name = row.get('name')
+            email = row.get('email')
+            class_num = row.get('student_class_num') or row.get('studen_class_num') or ''
+            
+            print(f"DEBUG: 正在處理: {name} | 座號: {class_num}")
+            
+            password_val = row.get('password')
+            hashed_pw = get_password_hash(str(password_val).strip())
+
+            # 修正：SQL 指令後方必須補上對應的資料參數
             cur.execute("""
                 INSERT INTO users (student_id, name, email, student_class_num, password, role) 
                 VALUES (%s, %s, %s, %s, %s, 'student') 
@@ -154,16 +164,23 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
                     email = EXCLUDED.email, 
                     student_class_num = EXCLUDED.student_class_num,
                     password = EXCLUDED.password
-                    -- 這裡沒有更新日期欄位，所以它會一直停在舊的時間！
-            """, (...))
+            """, (
+                student_id,
+                name,
+                email,
+                class_num,
+                hashed_pw
+            ))
+            
         conn.commit()
         cur.close()
+        print("✅ 資料匯入並提交成功")
         return {"message": "匯入成功"}
     except Exception as e:
         conn.rollback()
+        print(f"❌ 匯入出錯: {str(e)}")
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
     finally: release_db(conn)
-
 @app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
 async def read_index(): return os.path.join(ROOT_DIR, "frontend", "index.html")
 @app.get("/login", response_class=FileResponse)
