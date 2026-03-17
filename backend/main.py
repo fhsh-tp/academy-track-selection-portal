@@ -98,7 +98,7 @@ async def submit(data: dict):
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
     # 這裡從前端獲取班級座號資訊，若前端無傳入則預設為空字串
-    studen_class_num = data.get("studen_class_num", "")
+    studen_class_num = data.get("student_class_num", "")
 
     if not email:
         return {"status": "error", "message": "後端沒有收到 email"}
@@ -107,13 +107,13 @@ async def submit(data: dict):
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
     # 修正：傳入 5 個參數給 generate_formal_pdf
-    pdf_bytes = generate_formal_pdf(name, student_id, studen_class_num, int(choice_num), submit_time)
+    pdf_bytes = generate_formal_pdf(name, student_id, student_class_num, int(choice_num), submit_time)
     
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
 
     # 修正：傳入對應參數給 send_confirmation_email
-    success = send_confirmation_email(email, name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes)
+    success = send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
     
     if success:
         return {"status": "success", "message": "申請已送出，確認信已寄至您的信箱"}
@@ -153,7 +153,6 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
             print(f"DEBUG: 正在處理: {name} | 座號: {class_num}")
             
             password_val = row.get('password')
-            print(f"DEBUG: 學生 {name} ({student_id}) 的原始密碼為: [{password_val}]", flush=True)
             hashed_pw = get_password_hash(str(password_val).strip())
 
             # 修正：SQL 指令後方必須補上對應的資料參數
