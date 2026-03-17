@@ -71,7 +71,7 @@ async def login(data: LoginData):
         "name": user['name'],        
         "email": user['email'],      
         "student_id": user['student_id'],
-        "studen_class_num": user.get('studen_class_num', "未填寫") # 確保回傳座號
+        "student_class_num": user.get('student_class_num', "未填寫") # 確保回傳座號
     }
 
 @app.post("/admin-login")
@@ -145,14 +145,14 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
             hashed_pw = get_password_hash(row.get('password', '123456').strip())
             # 增加 studen_class_num 欄位的寫入
             cur.execute("""
-                INSERT INTO users (student_id, name, email, studen_class_num, password, role) 
+                INSERT INTO users (student_id, name, email, student_class_num, password, role) 
                 VALUES (%s, %s, %s, %s, %s, 'student') 
                 ON CONFLICT (student_id) DO UPDATE SET 
                     name = EXCLUDED.name, 
                     email = EXCLUDED.email, 
-                    studen_class_num = EXCLUDED.studen_class_num,
+                    student_class_num = EXCLUDED.student_class_num,
                     password = EXCLUDED.password
-            """, (row['student_id'], row['name'], row['email'], row.get('studen_class_num', ''), hashed_pw))
+            """, (row['student_id'], row['name'], row['email'], row.get('student_class_num', ''), hashed_pw))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}

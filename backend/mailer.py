@@ -26,7 +26,7 @@ def register_fonts():
 
 register_fonts()
 
-def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, submit_time):
+def generate_formal_pdf(student_name, student_id, student_class_num, choice_num, submit_time):
     buffer = io.BytesIO()
     # 設定頁面邊距
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
@@ -41,7 +41,7 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     elements.append(Paragraph("臺北市立復興高級中學高一升高二普通班學生選擇班群表", title_style))
     
     # 2. 學生資訊列 - 調整欄寬確保班級座號顯示
-    info_data = [[f"班級座號：{studen_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
+    info_data = [[f"班級座號：{student_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
     info_table = Table(info_data, colWidths=[6.5*cm, 5*cm, 6*cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
@@ -106,7 +106,7 @@ def generate_formal_pdf(student_name, student_id, studen_class_num, choice_num, 
     doc.build(elements)
     return buffer.getvalue()
 
-def send_confirmation_email(recipient, student_name, student_id, studen_class_num, choice_text, submit_time, pdf_bytes):
+def send_confirmation_email(recipient, student_name, student_id, student_class_num, choice_text, submit_time, pdf_bytes):
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("GMAIL_USER")
 
@@ -118,7 +118,7 @@ def send_confirmation_email(recipient, student_name, student_id, studen_class_nu
         
         email_content = (
             f"你好 {student_name}，你的志願已送出。\n\n"
-            f"班級座號：{studen_class_num}\n"
+            f"班級座號：{student_class_num}\n"
             f"學號：{student_id}\n"
             f"選填結果：{choice_text}\n"
             f"提交時間：{submit_time}\n\n"
