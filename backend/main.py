@@ -61,21 +61,17 @@ async def login(data: LoginData):
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
         finally: release_db(conn)
-        
     user = await asyncio.to_thread(db_logic)
-    
     if not user or not verify_password(data.password, user['password']): 
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
-    
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
-    
     return {
         "access_token": token, 
         "role": user['role'],
         "name": user['name'],        
         "email": user['email'],      
         "student_id": user['student_id'],
-        "studen_class_num": user.get('studen_class_num', "未填寫")
+        "studen_class_num": user.get('studen_class_num', "未填寫") # 確保回傳座號
     }
 
 @app.post("/admin-login")
@@ -147,7 +143,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         cur = conn.cursor()
         for row in reader:
             hashed_pw = get_password_hash(row.get('password', '123456').strip())
-            # --- 修正後的 SQL 語句，確保沒有 ... 符號且包含班級座號 ---
+            # 增加 studen_class_num 欄位的寫入
             cur.execute("""
                 INSERT INTO users (student_id, name, email, studen_class_num, password, role) 
                 VALUES (%s, %s, %s, %s, %s, 'student') 
@@ -156,13 +152,7 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
                     email = EXCLUDED.email, 
                     studen_class_num = EXCLUDED.studen_class_num,
                     password = EXCLUDED.password
-            """, (
-                row['student_id'], 
-                row['name'], 
-                row['email'], 
-                row.get('studen_class_num', ''), 
-                hashed_pw
-            ))
+            """, (row['student_id'], row['name'], row['email'], row.get('studen_class_num', ''), hashed_pw))
         conn.commit()
         cur.close()
         return {"message": "匯入成功"}

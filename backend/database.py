@@ -47,8 +47,7 @@ def init_db():
         cur.execute("CREATE TABLE IF NOT EXISTS users (student_id TEXT PRIMARY KEY, name TEXT NOT NULL, password TEXT NOT NULL, role TEXT DEFAULT 'student', email TEXT)")
         cur.execute("CREATE TABLE IF NOT EXISTS selections (student_id TEXT PRIMARY KEY REFERENCES users(student_id), choice INTEGER NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
         
-        # 2. 【關鍵：用程式自動灌入欄位】
-        # 檢查 users 表格是否有 studen_class_num 欄位，沒有就補上
+        # 2. 【新增】自動檢查並補上班級座號欄位
         cur.execute("""
             DO $$ 
             BEGIN 
@@ -70,6 +69,6 @@ def init_db():
         print("✅ 資料庫初始化與欄位檢查完成")
     except Exception as e:
         print(f"❌ 資料庫初始化失敗: {e}")
-        conn.rollback() # 發生錯誤時回滾
+        conn.rollback()
     finally:
         release_db(conn)
