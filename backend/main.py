@@ -121,14 +121,6 @@ async def submit(data: dict):
     else:
         return {"status": "error", "message": "郵件寄送失敗，請稍後再試"}
 
-    # 3. 這裡也直接傳入 s_class
-    success = send_confirmation_email(email, name, student_id, s_class, choice_text, submit_time, pdf_bytes)
-    
-    if success:
-        return {"status": "success", "message": "申請已送出"}
-    else:
-        return {"status": "error", "message": "郵件寄送失敗"}
-
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
