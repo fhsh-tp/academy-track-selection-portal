@@ -25,7 +25,7 @@
         
         <table border="1" id="data-table" style="width:100%; border-collapse: collapse;">
             <thead>
-                <tr><th>學號</th><th>姓名</th><th>類組</th><th>更新時間</th></tr>
+                <tr><th>學號</th><th>姓名</th><th>班級座號</th><th>類組</th><th>更新時間</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -88,6 +88,7 @@
                     const fields = [
                         student.student_id, 
                         student.name, 
+                        student.student_class_num || '未填寫', // <--- 補上這行，它才會畫出對應的 td
                         groupMap[student.choice] || '未選', 
                         student.updated_at || ''
                     ];
@@ -111,7 +112,10 @@
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
             });
             const data = await res.json();
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF學號,姓名,類組,更新時間\n";
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF學號,姓名,班級座號,類組,更新時間\n";
+            data.forEach(row => {
+                csvContent += `${row.student_id},${row.name},${row.student_class_num || ''},${groupMap[row.choice] || '未選'},${row.updated_at || ''}\n`;
+            });
             data.forEach(row => {
                 csvContent += `${row.student_id},${row.name},${groupMap[row.choice] || '未選'},${row.updated_at || ''}\n`;
             });
