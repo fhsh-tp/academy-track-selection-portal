@@ -1,60 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-    <head>
-        <meta charset="UTF-8">
-        <title>114 學年度選類組系統</title>
-        <link rel="stylesheet" href="style.css">
-        <style>
-            /* 原有的按鈕與容器樣式 */
-            .home-box { margin-top: 100px; text-align: center; }
-            .start-btn { 
-                display: inline-block; 
-                padding: 15px 40px; 
-                font-size: 20px; 
-                background-color: #28a745; 
-                color: white; 
-                text-decoration: none; 
-                border-radius: 50px; 
-                transition: 0.3s;
-                cursor: pointer;
-            }
-            .start-btn:hover { background-color: #218838; transform: scale(1.05); }
-    
-            /* 新增：作者與團隊資訊區塊 */
-            .footer-credits {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                text-align: right;
-                color: rgba(0, 0, 0, 0.4); /* 半透明字體 */
-                font-size: 13px;
-                line-height: 1.6;
-                pointer-events: none; /* 讓滑鼠穿透，不影響操作 */
-                font-family: "Microsoft JhengHei", Arial, sans-serif;
-            }
-            .credit-title {
-                font-weight: bold;
-                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-                margin-bottom: 5px;
-                display: inline-block;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container home-box">
-            <h1>歡迎使用</h1>
-            <h2>114 學年度選類組系統</h2>
-            <p>請準備好您的學號以進行身分驗證。</p>
-            <br>
-            <a href="login.html" class="start-btn">開始選填</a>
-        </div>
-    
-        <div class="footer-credits">
-            <div class="credit-title">開發團隊</div>
-            <div>專案文件：羅文婷、李承勳、邱筱涵</div>
-            <div>系統架構：陳柏霖</div>
-        </div>
-    </body>
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://student-choice-sys.onrender.com;">
+    <meta charset="UTF-8">
+    <title>114學年度選類組系統</title>
+    <link rel="stylesheet" href="/static/style.css?v=1.1">
+</head>
 <body>
     <button class="admin-btn-small" onclick="window.location.href='/admin-login'">管理員入口</button>
 
