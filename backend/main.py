@@ -28,7 +28,7 @@ DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
 try:
     deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
 except:
-    deadline_dt = datetime(2026, 3, 23, 11, 00, 00)
+    deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
 CHOICE_MAP = {1: "一類組 (文法商數A)", 2: "一類組 (文法商數B)", 3: "理工資", 4: "生醫農"}
