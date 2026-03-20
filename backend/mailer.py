@@ -91,9 +91,9 @@ def generate_formal_pdf(student_name, student_id, student_class_num, choice_num,
     sig_data = [
         [Paragraph("學生簽名：____________________", note_style), Paragraph("導師簽名：____________________", note_style)],
         [Spacer(1, 35), Spacer(1, 35)],
-        [Paragraph("家長簽名：____________________", note_style), Paragraph("◎請於5月5日前完成簽名、交給學藝股長彙整。", note_style)],
+        [Paragraph("家長簽名：____________________", note_style), Paragraph("◎請於5月4日前完成簽名、交給學藝股長彙整。", note_style)],
         [Spacer(1, 35), Spacer(1, 35)],
-        [Paragraph("家長電話：____________________", note_style), Paragraph("◎若更改選擇，請於期限內上網修正，重新列印簽名", note_style)]
+        [Paragraph("家長電話：____________________", note_style), Paragraph("◎若要更改，請於期限內上網修正，重新列印簽名", note_style)]
     ]
     
     sig_table = Table(sig_data, colWidths=[9*cm, 9*cm])
