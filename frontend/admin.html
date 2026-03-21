@@ -116,9 +116,6 @@
             data.forEach(row => {
                 csvContent += `${row.student_id},${row.name},${row.student_class_num || ''},${groupMap[row.choice] || '未選'},${row.updated_at || ''}\n`;
             });
-            data.forEach(row => {
-                csvContent += `${row.student_id},${row.name},${groupMap[row.choice] || '未選'},${row.updated_at || ''}\n`;
-            });
             const link = document.createElement("a");
             link.setAttribute("href", encodeURI(csvContent));
             link.setAttribute("download", "選填資料.csv");
