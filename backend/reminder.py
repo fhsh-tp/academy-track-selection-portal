@@ -15,7 +15,7 @@ async def send_reminders():
         deadline_dt = datetime.strptime(DEADLINE_STR, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         # 預防萬一環境變數格式錯誤
-        deadline_dt = datetime(2026, 4, 30, 23, 59, 59)
+        deadline_dt = datetime(2026, 3, 24, 21, 45, 00)
 
     now = datetime.now()
     days_left = (deadline_dt - now).days
