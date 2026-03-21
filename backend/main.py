@@ -170,7 +170,10 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
             name = row.get('name')
             email = row.get('email')
             # 統一使用 student_class_num
-            student_class_num = row.get('student_class_num') or row.get('studen_class_num') or ""
+            student_class_num = row.get('student_class_num', "").strip()
+            if not student_class_num:
+                print(f"⚠️ 學生 {name} 缺少班級座號，跳過匯入")
+                continue
             
             print(f"DEBUG: 正在處理: {name} | 座號: {student_class_num}") # 這裡要改成 student_class_num
             
