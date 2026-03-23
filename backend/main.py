@@ -24,11 +24,11 @@ ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
 font_path = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
 
 # --- 系統設定 ---
-DEADLINE = os.environ.get("DEADLINE_DATE", "2026-04-30 23:59:59")
+DEADLINE = os.environ.get("DEADLINE_DATE")
 try:
     deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
 except:
-    deadline_dt = datetime(2026, 3, 26, 12, 30, 00)
+    deadline_dt = datetime(2026, 5, 4, 23, 59, 59)
 
 scheduler = AsyncIOScheduler()
 CHOICE_MAP = {1: "一類組 (文法商數A)", 2: "一類組 (文法商數B)", 3: "理工資", 4: "生醫農"}
