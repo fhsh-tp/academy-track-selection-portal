@@ -107,33 +107,46 @@ def send_confirmation_email(recipient, student_name, student_id, student_class_n
         return False
 
     try:
-        email_content = (
-            f"你好 {student_name}，你的志願已送出。\n\n"
-            f"班級座號：{student_class_num}\n"
-            f"學號：{student_id}\n"
-            f"選填結果：{choice_text}\n"
-            f"提交時間：{submit_time}\n\n"
-            "--------------------------------------------------\n"
-            "⚠️ 重要提醒：\n"
-            "【不要】點擊郵件的「Unsubscribe (取消訂閱)」。\n"
-            "若誤按取消訂閱，系統將無法再寄送任何選填確認信或重要通知給你。\n"
-            "--------------------------------------------------\n"
-            "請查看附件中的 PDF 確認書。"
-        )
+        # 判斷是否為「提醒信」模式（當 pdf_bytes 為空時）
+        is_reminder = not (pdf_bytes and len(pdf_bytes) > 0)
+
+        if is_reminder:
+            # --- 1. 提醒信：標題與格式 ---
+            subject = "【重要通知】您的類組尚未選填"
+            email_content = (
+                f"你好 {student_name}\n"
+                f"您的類組尚未選填。\n"
+                f"班級座號：{student_class_num}\n"
+                f"學號：{student_id}\n"
+                f"選填結果：尚未完成填寫。"
+            )
+        else:
+            # --- 2. 確認信：標題與格式 ---
+            subject = f"【重要確認信】{student_name} 的選填結果"
+            email_content = (
+                f"你好 {student_name}，你的志願已送出。\n\n"
+                f"班級座號：{student_class_num}\n"
+                f"學號：{student_id}\n"
+                f"選填結果：{choice_text}\n"
+                f"提交時間：{submit_time}\n\n"
+                "--------------------------------------------------\n"
+                "請查看附件中的 PDF 確認書並列印簽名。"
+            )
 
         payload = {
             "sender": {"email": sender_email, "name": "復興高中選填系統"},
             "to": [{"email": recipient}],
-            "subject": f"【重要確認信】{student_name} 的選填結果",
+            "subject": subject,
             "textContent": email_content
         }
         
-        # 修正重點：只有當 pdf_bytes 有內容時才加入附件
-        if pdf_bytes and len(pdf_bytes) > 0:
+        # 只有在「非提醒信」（即確認信）模式下，才掛載 PDF 附件
+        if not is_reminder:
             pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-            payload["attachment"] = [{"name": f"{student_id}_確認書.pdf", "content": pdf_base64}]
-        else:
-            print(f"ℹ️ [MAILER] 偵測為提醒信模式 (無 PDF 附件) - 對象: {student_name}")
+            payload["attachment"] = [{
+                "name": f"{student_id}_確認書.pdf", 
+                "content": pdf_base64
+            }]
         
         headers = {
             "api-key": api_key, 
@@ -144,7 +157,7 @@ def send_confirmation_email(recipient, student_name, student_id, student_class_n
         response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
         
         if response.status_code not in [201, 202]:
-            print(f"❌ [MAILER] API 拒絕！狀態碼: {response.status_code}", flush=True)
+            print(f"❌ [MAILER] API 失敗！對象: {student_name}, 狀態碼: {response.status_code}", flush=True)
             print(f"❌ [MAILER] 錯誤詳情: {response.text}", flush=True)
             return False
             
