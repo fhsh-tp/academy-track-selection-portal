@@ -201,14 +201,15 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
 
 @app.post("/admin/send-reminders")
 async def api_send_reminders(current_user: dict = Depends(get_current_user)):
-    """管理員手動觸發：寄送提醒信給未選填學生"""
-    
-    # 1. 權限檢查
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="權限不足")
     
+    # 修正這裡：改用 student_id 或 name，或是用 .get() 避免崩潰
+    admin_name = current_user.get("name")
+    admin_id = current_user.get("student_id", "Unknown")
+    
     print("\n" + "="*30)
-    print(f"📣 [ADMIN] 管理員 {current_user['sub']} 觸發了手動提醒信功能")
+    print(f"📣 [ADMIN] 管理員 {admin_name} ({admin_id}) 觸發了手動提醒信功能")
     print(f"🕒 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     conn = None
