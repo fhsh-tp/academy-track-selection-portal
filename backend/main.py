@@ -197,6 +197,102 @@ async def import_students(file: UploadFile = File(...), current_user: dict = Dep
         print(f"❌ 匯入出錯: {str(e)}")
         raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
     finally: release_db(conn)
+# --- main.py 新增路由 ---
+
+@app.post("/admin/send-reminders")
+async def api_send_reminders(current_user: dict = Depends(get_current_user)):
+    """管理員手動觸發：寄送提醒信給未選填學生"""
+    
+    # 1. 權限檢查
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="權限不足")
+    
+    print("\n" + "="*30)
+    print(f"📣 [ADMIN] 管理員 {current_user['sub']} 觸發了手動提醒信功能")
+    print(f"🕒 時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    conn = None
+    try:
+        conn = get_db()
+        # 使用 RealDictCursor 讓結果變成字典，方便存取
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # 2. 查詢未選填且有 Email 的學生名單
+        # 注意：確保 Table 名稱與你的 database.py 一致 (這裡是 users 和 selections)
+        sql_query = '''
+            SELECT u.student_id, u.name, u.email, u.student_class_num
+            FROM users u 
+            LEFT JOIN selections s ON u.student_id = s.student_id 
+            WHERE s.choice IS NULL 
+              AND u.role = 'student' 
+              AND u.email IS NOT NULL 
+              AND u.email != ''
+        '''
+        print("🔍 正在查詢未選填名單...")
+        cur.execute(sql_query)
+        unsubmitted_users = cur.fetchall()
+        cur.close()
+
+        print(f"📊 找到 {len(unsubmitted_users)} 位未選填學生。")
+
+        if not unsubmitted_users:
+            return {"status": "success", "message": "目前所有學生都已完成選填，無需寄信。"}
+
+        # 3. 逐一寄信
+        success_count = 0
+        fail_count = 0
+        
+        print("🚀 開始寄送郵件...")
+        for i, user in enumerate(unsubmitted_users, 1):
+            print(f"📧 [({i}/{len(unsubmitted_users)})] 嘗試寄送至: {user['email']} ({user['name']})")
+            
+            try:
+                # 呼叫 mailer.py 的寄信函式 (確保參數對齊)
+                # 提醒信不需要 PDF，pdf_bytes 傳入空的 bytes (b"")
+                success = send_confirmation_email(
+                    recipient=user['email'],
+                    student_name=user['name'],
+                    student_id=user['student_id'],
+                    student_class_num=user['student_class_num'] or "未設定",
+                    choice_text="系统提醒：您尚未完成志願選填",
+                    submit_time="--- (手動提醒) ---",
+                    pdf_bytes=b"" 
+                )
+                
+                if success:
+                    print(f"   ✔️ [SUCCESS] {user['name']} 寄送成功")
+                    success_count += 1
+                else:
+                    print(f"   ⚠️ [FAILED] {user['name']} 寄送失敗 (API 可能拒絕)")
+                    fail_count += 1
+                    
+            except Exception as mail_err:
+                print(f"   ❌ [EXCEPTION] 寄信過程出錯: {mail_err}")
+                fail_count += 1
+            
+            # 延遲 1.2 秒，避免被郵件伺服器判定為垃圾郵件或觸發 Brevo 的頻率限制
+            await asyncio.sleep(1.2)
+
+        print(f"✨ 任務完成。成功: {success_count} 封, 失敗: {fail_count} 封。")
+        print("="*30 + "\n")
+        
+        return {
+            "status": "success", 
+            "message": f"提醒信寄送完畢。成功: {success_count} 封，失敗: {fail_count} 封。",
+            "details": {
+                "total_found": len(unsubmitted_users),
+                "success": success_count,
+                "failed": fail_count
+            }
+        }
+
+    except Exception as e:
+        print(f"💥 [CRITICAL] 提醒任務發生重大錯誤: {e}")
+        raise HTTPException(status_code=500, detail=f"系統錯誤: {str(e)}")
+    finally:
+        if conn:
+            release_db(conn)
+            print("🔌 資料庫連線已釋放")
 @app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
 async def read_index(): return os.path.join(ROOT_DIR, "frontend", "index.html")
 @app.get("/login", response_class=FileResponse)

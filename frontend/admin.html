@@ -41,6 +41,45 @@
             </div>
         </div>
 
+        <div style="margin-top: 20px; display: flex; gap: 20px;">
+            <button onclick="exportToCSV()" class="btn-export">匯出成 CSV</button>
+            
+            <div class="admin-panel">
+                </div>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="exportToCSV()" class="btn-export">匯出成 CSV</button>
+                <button onclick="sendReminders()" class="btn-reminder" id="reminderBtn">
+                    📧 寄送未選填提醒信
+                </button>
+            </div>
+            
+            <div class="admin-panel" style="margin-top: 0;">
+                <h3>學生資料批次匯入</h3>
+                <input type="file" id="csvFile" accept=".csv">
+                <button onclick="uploadCSV()" class="btn-primary">上傳 CSV</button>
+                <p style="font-size: 0.8em; color: #666;">請確保 CSV 包含：學號, 姓名, 電子信箱, student_class_num</p>
+            </div>
+        </div>
+        
+        <style>
+            /* ... 原有的樣式 ... */
+            .btn-reminder { 
+                background-color: #f4b400; /* 黃色，表示警告或提醒 */
+                color: white; 
+                border: none; 
+                padding: 10px 20px; 
+                cursor: pointer; 
+                border-radius: 4px; 
+                font-weight: bold;
+                transition: background-color 0.3s;
+            }
+            .btn-reminder:hover { background-color: #d19a00; }
+            .btn-reminder:disabled { background-color: #ccc; cursor: not-allowed; }
+        </style>
+
         <div class="bottom-right">
             <div class="password-box">
                 <h3 style="margin-top: 0;">修改管理員密碼</h3>
@@ -122,7 +161,7 @@
             document.body.appendChild(link);
             link.click();
         }
-
+        
         async function uploadCSV() {
             const fileInput = document.getElementById('csvFile');
             const file = fileInput.files[0];
@@ -159,6 +198,87 @@
                 body: JSON.stringify({ old_password: document.getElementById('oldPwd').value, new_password: document.getElementById('newPwd').value })
             });
             res.ok ? Swal.fire({ icon: 'success', title: '修改成功' }) : Swal.fire({ icon: 'error', title: '修改失敗' });
+        }
+
+        // --- admin.html JavaScript 新增函式 ---
+
+        async function sendReminders() {
+            // 1. 取得 Token
+            const token = localStorage.getItem('jwt_token');
+            if (!token) {
+                Swal.fire({ icon: 'error', title: '認證失敗', text: '請重新登入' });
+                return;
+            }
+
+            // 2. 二次確認
+            const result = await Swal.fire({
+                title: '確定要寄送提醒信嗎？',
+                text: "系統將找出所有『尚未選填志願』的學生，並逐一寄送 Email。此操作無法復原，且需要一段時間。",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#f4b400',
+                cancelButtonColor: '#aaa',
+                confirmButtonText: '確定，開始寄送',
+                cancelButtonText: '取消'
+            });
+
+            if (!result.isConfirmed) return;
+
+            // 3. 鎖定按鈕並顯示處理中狀態
+            const btn = document.getElementById('reminderBtn');
+            btn.disabled = true;
+            btn.innerText = "⏳ 正在處理中，請勿關閉視窗...";
+            
+            Swal.fire({
+                title: '正在執行寄送任務',
+                html: '正在連線資料庫並逐一發送郵件，<br>這可能需要幾分鐘的時間，請稍候...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading(); // 顯示載入動畫
+                }
+            });
+
+            // 4. 呼叫後端 API
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/admin/send-reminders`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // 5. 處理結果
+                const data = await res.json();
+                
+                if (res.ok) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '任務完成',
+                        text: data.message, // 顯示後端傳回的成功訊息（包含成功/失敗封數）
+                        confirmButtonText: '太棒了'
+                    });
+                } else {
+                    // 如果後端回傳錯誤 (例如 401, 403, 500)
+                    Swal.fire({
+                        icon: 'error',
+                        title: '寄送失敗',
+                        text: data.detail || '系統發生未知錯誤，請稍後再試。'
+                    });
+                }
+            } catch (e) {
+                // 如果連線失敗 (例如網路斷線, 伺服器掛掉)
+                console.error("提醒任務錯誤:", e);
+                Swal.fire({
+                    icon: 'error',
+                    title: '連線失敗',
+                    text: '無法連線至伺服器，請檢查網路連線或伺服器狀態。'
+                });
+            } finally {
+                // 6. 無論成功或失敗，都恢復按鈕狀態
+                btn.disabled = false;
+                btn.innerText = "📧 寄送未選填提醒信";
+            }
         }
 
         function logout() { localStorage.clear(); window.location.href = '/login'; }
