@@ -39,19 +39,37 @@ def generate_formal_pdf(student_name, student_id, student_class_num, choice_num,
     title_style = ParagraphStyle('Title', fontName='ChineseFont', fontSize=20, leading=24, alignment=1, spaceAfter=20)
     note_style = ParagraphStyle('Note', fontName='ChineseFont', fontSize=11, leading=16)
     
+    # --- 新增：自動偵測並切換字型 ---
+    def get_styled_text(text, base_font="ChineseFont", ext_font="ChineseFont_EXTB"):
+        """如果字元編碼大於 0xFFFF (如 𦱀)，則切換至擴展字型"""
+        styled_text = ""
+        for char in text:
+            if ord(char) > 0xFFFF:
+                styled_text += f'<font name="{ext_font}">{char}</font>'
+            else:
+                styled_text += char
+        return styled_text
+
     elements = []
     elements.append(Paragraph("臺北市立復興高級中學高一升高二普通班學生選擇班群表", title_style))
     
-    info_data = [[f"班級座號：{student_class_num}", f"學號：{student_id}", f"姓名：{student_name}"]]
+    # 將姓名轉換為支援 HTML 標籤的 Paragraph 物件
+    styled_name = get_styled_text(student_name)
+    name_paragraph = Paragraph(f"姓名：{styled_name}", note_style)
+    
+    # 這裡將原本的字串 f"姓名：{student_name}" 替換為 name_paragraph 物件
+    info_data = [[f"班級座號：{student_class_num}", f"學號：{student_id}", name_paragraph]]
     info_table = Table(info_data, colWidths=[6.5*cm, 5*cm, 6*cm])
     info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'ChineseFont'),
+        ('FONTNAME', (0, 0), (1, 0), 'ChineseFont'), # 前兩格維持原樣
         ('FONTSIZE', (0, 0), (-1, -1), 12),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # 確保 Paragraph 在儲存格內垂直居中
     ]))
     elements.append(info_table)
     elements.append(Spacer(1, 15))
 
+    # --- 以下邏輯維持不變 ---
     v1, v2, v3, v4 = "", "", "", ""
     if choice_num == 1: v1 = "V"
     elif choice_num == 2: v2 = "V"
