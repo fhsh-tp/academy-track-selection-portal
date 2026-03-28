@@ -78,7 +78,7 @@ def generate_formal_pdf(student_name, student_id, student_class_num, choice_num,
 
     print_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
     choice_table_data = [
-        ["班群", "文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
+        [ "文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
         ["勾選", v1, v2, v3, v4],
         [f"勾選時間：{submit_time}", "", "", f"列印時間：{print_time}", ""]
     ]

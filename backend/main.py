@@ -127,7 +127,7 @@ async def submit(data: dict):
         raise HTTPException(status_code=500, detail="資料庫紀錄失敗")
 
     # 3. 寄信與產生 PDF
-    choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "二類組 (理工資)", 4: "三類組 (生醫農)"}
+    choice_map = {1: "文法商 (數A課程路徑)", 2: "文法商 (數B課程路徑)", 3: "理工資", 4: "生醫農"}
     choice_text = choice_map.get(int(choice_num), "未知類組")
 
     pdf_bytes = generate_formal_pdf(name, student_id, student_class_num, int(choice_num), submit_time)
