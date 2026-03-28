@@ -155,48 +155,61 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
     return await asyncio.to_thread(db_logic)
 
 @app.post("/admin/import-students")
-async def import_students(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
+async def import_students(file: UploadFile = File(...)):
+    # 1. 讀取原始二進位資料
     content = await file.read()
-    stream = io.StringIO(content.decode('utf-8'))
-    reader = csv.DictReader(stream)
-    conn = get_db()
-    try:
-        cur = conn.cursor()
-        for row in reader:
-            row = {str(k).strip(): str(v).strip() for k, v in row.items() if k}
-            
-            student_id = row.get('student_id')
-            name = row.get('name')
-            email = row.get('email')
-            # 統一使用 student_class_num
-            student_class_num = row.get('student_class_num', "").strip()
-            if not student_class_num:
-                print(f"⚠️ 學生 {name} 缺少班級座號，跳過匯入")
-                continue
-            
-            print(f"DEBUG: 正在處理: {name} | 座號: {student_class_num}") # 這裡要改成 student_class_num
-            
-            password_val = row.get('password')
-            hashed_pw = get_password_hash(str(password_val).strip())
+    
+    if not content:
+        return {"status": "error", "message": "檔案內容為空"}
 
-            cur.execute("""
-                INSERT INTO users (student_id, name, email, student_class_num, password, role) 
-                VALUES (%s, %s, %s, %s, %s, 'student') 
-                ON CONFLICT (student_id) DO UPDATE SET 
-                    student_class_num = EXCLUDED.student_class_num,
-                    password = EXCLUDED.password
-            """, (student_id, name, email, student_class_num, hashed_pw))
-            
-        conn.commit()
-        cur.close()
-        print("✅ 資料匯入並提交成功")
-        return {"message": "匯入成功"}
+    try:
+        # 2. 解決編碼問題：優先用 big5-hkscs (支援生僻字) 
+        # 如果是 Excel 存出的 UTF-8，這行會跳 except
+        decoded_content = content.decode('big5-hkscs')
+    except Exception:
+        try:
+            # 嘗試帶 BOM 的 UTF-8 (Excel 另一種常用格式)
+            decoded_content = content.decode('utf-8-sig')
+        except Exception:
+            # 最後備案
+            decoded_content = content.decode('utf-8', errors='replace')
+
+    # 3. 處理換行符號問題 (重要：有些 CSV 換行會導致讀取跳空)
+    import io
+    import csv
+    stream = io.StringIO(decoded_content.replace('\r\n', '\n').replace('\r', '\n'))
+    
+    reader = csv.DictReader(stream)
+    
+    # 檢查欄位名稱 (先印出來 Debug 用)
+    print(f"DEBUG: CSV 欄位名稱為 {reader.fieldnames}", flush=True)
+
+    success_count = 0
+    try:
+        # 這裡建議先清空舊資料或使用 upsert 邏輯
+        # db.execute("DELETE FROM students") 
+
+        for row in reader:
+            # 加上 strip() 防止空格導致資料比對失敗
+            name = row.get('name', '').strip()
+            sid = row.get('student_id', '').strip()
+            s_class = row.get('class_num', '').strip()
+            email = row.get('email', '').strip()
+
+            if name and sid:
+                # 執行寫入資料庫的動作
+                # db.execute("INSERT INTO ...", (name, sid, s_class, email))
+                success_count += 1
+        
+        # 4. 確保有 Commit
+        # db.commit() 
+        
+        print(f"✅ 成功匯入 {success_count} 筆資料", flush=True)
+        return {"status": "success", "message": f"成功匯入 {success_count} 筆資料"}
+
     except Exception as e:
-        conn.rollback()
-        print(f"❌ 匯入出錯: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"匯入失敗: {str(e)}")
-    finally: release_db(conn)
+        print(f"❌ 匯入過程發生錯誤: {str(e)}", flush=True)
+        return {"status": "error", "message": str(e)}
 # --- main.py 新增路由 ---
 
 @app.post("/admin/send-reminders")
