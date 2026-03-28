@@ -14,7 +14,7 @@ from datetime import datetime
 # --- 1. 字型註冊 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 ROOT_DIR = os.path.dirname(BASE_DIR)
-FONT_PATH = os.path.join(ROOT_DIR, "frontend", "NotoSansTC-Regular.ttf")
+FONT_PATH = os.path.join(ROOT_DIR, "frontend", "TW-Kai-Plus-98_1.ttf")
 
 def register_fonts():
     try:
