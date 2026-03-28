@@ -159,51 +159,58 @@ async def import_students(file: UploadFile = File(...)):
     content = await file.read()
     conn = get_db()
     try:
-        # --- 1. 處理編碼 (解決葉栢霖與 500 錯誤) ---
+        # 1. 處理編碼 (解決生僻字與 BOM 問題)
         try:
-            decoded_content = content.decode('big5-hkscs') # 優先支援生僻字
+            decoded_content = content.decode('big5-hkscs')
         except:
+            # utf-8-sig 會自動移除 Excel 產生的 BOM (\ufeff)
             decoded_content = content.decode('utf-8-sig', errors='replace')
 
         stream = io.StringIO(decoded_content.replace('\r\n', '\n'))
         reader = csv.DictReader(stream)
         
-        # 清洗欄位名稱，移除 Excel 可能產生的空白或 BOM
-        reader.fieldnames = [fn.strip().lower() for fn in reader.fieldnames] if reader.fieldnames else []
+        # 2. 強制清理欄位標題 (移除所有空格並轉小寫)
+        if reader.fieldnames:
+            reader.fieldnames = [fn.strip().lower() for fn in reader.fieldnames]
         
         cur = conn.cursor()
         success_count = 0
         
         for row in reader:
-            # 根據你的 CSV 標題抓取資料，請確保 CSV 第一行包含這些字眼
-            name = row.get('name') or row.get('姓名')
-            sid = row.get('student_id') or row.get('學號')
-            cnum = row.get('student_class_num') or row.get('class_num') or row.get('班級座號')
-            email = row.get('email') or row.get('電子信箱')
+            # 3. 清理每一列的資料：確保抓取的 Key 都有 strip()，且 Value 也要 strip()
+            # 這樣就算 CSV 裡寫 " 112001 "，也會變成 "112001"
+            name = (row.get('name') or row.get('姓名') or "").strip()
+            sid = (row.get('student_id') or row.get('學號') or "").strip()
+            # 自訂密碼抓取與清理
+            raw_password = (row.get('password') or row.get('密碼') or sid).strip()
+            
+            cnum = (row.get('student_class_num') or row.get('class_num') or row.get('班級座號') or "").strip()
+            email = (row.get('email') or row.get('電子信箱') or "").strip()
 
             if name and sid:
-                # --- 2. 真正寫入資料庫 (這部分你原本漏掉了) ---
-                # 使用 ON CONFLICT 確保重複匯入時會更新資料而非報錯
+                # 這裡只加密清理過後的乾淨字串
+                hashed_pw = get_password_hash(raw_password)
+                
                 cur.execute("""
                     INSERT INTO users (student_id, name, password, role, email, student_class_num)
                     VALUES (%s, %s, %s, 'student', %s, %s)
                     ON CONFLICT (student_id) 
                     DO UPDATE SET 
                         name = EXCLUDED.name,
+                        password = EXCLUDED.password,
                         email = EXCLUDED.email,
                         student_class_num = EXCLUDED.student_class_num
-                """, (sid.strip(), name.strip(), get_password_hash(sid.strip()), email.strip() if email else None, cnum.strip() if cnum else None))
+                """, (sid, name, hashed_pw, email if email else None, cnum if cnum else None))
                 success_count += 1
         
-        # --- 3. 務必 Commit，否則資料不會存檔 ---
         conn.commit()
         cur.close()
-        
+        print(f"✅ 成功匯入 {success_count} 筆資料 (含密碼加密)", flush=True)
         return {"status": "success", "message": f"成功匯入 {success_count} 筆學生資料"}
 
     except Exception as e:
         if conn: conn.rollback()
-        print(f"❌ 匯入失敗: {e}")
+        print(f"❌ 匯入失敗: {str(e)}", flush=True)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if conn: release_db(conn)
