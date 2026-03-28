@@ -21,7 +21,7 @@ from backend.security import verify_password, create_access_token, get_current_u
 # --- 路徑設定 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)                  # 專案根目錄
-font_path = os.path.join(ROOT_DIR, "frontend", "TW-Kai-Plus-98_1.ttf")
+font_path = os.path.join(ROOT_DIR, "frontend", "TW-Kai-98_1.ttf")
 
 # --- 系統設定 ---
 DEADLINE = os.environ.get("DEADLINE_DATE")
