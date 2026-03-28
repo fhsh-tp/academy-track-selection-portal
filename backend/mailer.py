@@ -15,14 +15,16 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 ROOT_DIR = os.path.dirname(BASE_DIR)
 FONT_PATH = os.path.join(ROOT_DIR, "frontend", "TW-Kai-98_1.ttf")
+FONT_EXTB = os.path.join(ROOT_DIR, "frontend", "TW-Kai-Ext-B-98_1.ttf")
 
 def register_fonts():
     try:
         if os.path.exists(FONT_PATH):
             pdfmetrics.registerFont(TTFont('ChineseFont', FONT_PATH))
-            print(f"✅ 字型註冊成功: {FONT_PATH}", flush=True)
+            pdfmetrics.registerFont(TTFont('ChineseFont_EXTB', FONT_EXTB))
+            print(f"✅ 字型註冊成功: {FONT_PATH}與{FONT_EXTB}", flush=True)
         else:
-            print(f"❌ 找不到字型檔: {FONT_PATH}", flush=True)
+            print(f"❌ 找不到字型檔: {FONT_PATH}或{FONT_EXTB}", flush=True)
     except Exception as e:
         print(f"❌ 字型註冊失敗: {e}", flush=True)
 
