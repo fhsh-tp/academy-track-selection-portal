@@ -149,7 +149,18 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
         conn = get_db()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cur.execute("SELECT u.student_id, u.name, u.email, u.student_class_num, s.choice, s.updated_at FROM users u LEFT JOIN selections s ON u.student_id = s.student_id WHERE u.role = 'student'")
+            cur.execute("""
+                SELECT 
+                    u.student_id, 
+                    u.name, 
+                    u.email, 
+                    u.student_class_num, 
+                    s.choice, 
+                    TO_CHAR(s.updated_at, 'YYYY/MM/DD HH24:MI:SS') as updated_at 
+                FROM users u 
+                LEFT JOIN selections s ON u.student_id = s.student_id 
+                WHERE u.role = 'student'
+            """)
             return cur.fetchall()
         finally: release_db(conn)
     return await asyncio.to_thread(db_logic)
