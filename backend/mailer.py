@@ -32,6 +32,7 @@ register_fonts()
 
 # --- 2. PDF 生成函式 ---
 def generate_formal_pdf(student_name, student_id, student_class_num, choice_num, submit_time):
+    display_submit_time = submit_time
     try:
         # 解析前端傳來的 ISO 格式 (例如 2026-04-01T11:54:53.715Z)
         # 我們取前 19 位字元 "2026-04-01T11:54:53"
