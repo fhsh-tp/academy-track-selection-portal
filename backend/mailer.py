@@ -9,7 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- 1. 字型註冊 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
@@ -32,19 +32,6 @@ register_fonts()
 
 # --- 2. PDF 生成函式 ---
 def generate_formal_pdf(student_name, student_id, student_class_num, choice_num, submit_time):
-    display_submit_time = submit_time
-    try:
-        # 解析前端傳來的 ISO 格式 (例如 2026-04-01T11:54:53.715Z)
-        # 我們取前 19 位字元 "2026-04-01T11:54:53"
-        utc_time = datetime.strptime(submit_time[:19], "%Y-%m-%dT%H:%M:%S")
-        
-        # 強制加上 8 小時轉為台灣時間
-        tw_time = utc_time + timedelta(hours=8)
-        display_submit_time = tw_time.strftime("%Y/%m/%d %H:%M:%S")
-    except Exception as e:
-        print(f"⚠️ 時間轉換失敗: {e}")
-        display_submit_time = submit_time # 萬一失敗才用原樣
-
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=40, bottomMargin=30)
     
@@ -93,7 +80,7 @@ def generate_formal_pdf(student_name, student_id, student_class_num, choice_num,
     choice_table_data = [
         ["班群","文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
         ["勾選", v1, v2, v3, v4],
-        [f"勾選時間：{display_submit_time}", "", "", f"列印時間：{print_time}", ""]
+        [f"勾選時間：{print_time}", "", "", f"列印時間：{print_time}", ""]
     ]
     
     w = 17.5 * cm / 5
@@ -161,7 +148,7 @@ def send_confirmation_email(recipient, student_name, student_id, student_class_n
                 f"班級座號：{student_class_num}\n"
                 f"學號：{student_id}\n"
                 f"選填結果：{choice_text}\n"
-                f"提交時間：{display_submit_time}\n\n"
+                f"提交時間：{submit_time}\n\n"
                 "--------------------------------------------------\n"
                 "請列印附件「選擇班群表」，經學生、家長與導師簽名，5月4日(一)前交給學藝股長。\n"
                 "【家中無印表機者歡迎至註冊組借電腦列印】"
