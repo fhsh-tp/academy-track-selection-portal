@@ -156,7 +156,7 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
                     u.email, 
                     u.student_class_num, 
                     s.choice, 
-                    TO_CHAR(s.updated_at, 'YYYY/MM/DD HH24:MI:SS') as updated_at 
+                    TO_CHAR(s.updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Taipei', 'YYYY/MM/DD HH24:MI:SS') as updated_at 
                 FROM users u 
                 LEFT JOIN selections s ON u.student_id = s.student_id 
                 WHERE u.role = 'student'

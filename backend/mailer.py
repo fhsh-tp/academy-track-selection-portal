@@ -127,6 +127,12 @@ def send_confirmation_email(recipient, student_name, student_id, student_class_n
         return False
 
     try:
+        dt_utc = datetime.strptime(submit_time[:19], "%Y-%m-%dT%H:%M:%S")
+        clean_time = (dt_utc + timedelta(hours=8)).strftime('%Y/%m/%d %H:%M:%S')
+    except:
+        clean_time = submit_time
+
+    try:
         # 判斷是否為「提醒信」模式（當 pdf_bytes 為空時）
         is_reminder = not (pdf_bytes and len(pdf_bytes) > 0)
 
@@ -148,7 +154,7 @@ def send_confirmation_email(recipient, student_name, student_id, student_class_n
                 f"班級座號：{student_class_num}\n"
                 f"學號：{student_id}\n"
                 f"選填結果：{choice_text}\n"
-                f"提交時間：{submit_time}\n\n"
+                f"提交時間：{clean_time}\n\n"
                 "--------------------------------------------------\n"
                 "請列印附件「選擇班群表」，經學生、家長與導師簽名，5月4日(一)前交給學藝股長。\n"
                 "【家中無印表機者歡迎至註冊組借電腦列印】"
