@@ -11,7 +11,7 @@ def init_db_pool():
     if db_pool is None:
         try:
             # Render 免費版建議設 1-15 個連線，既能應付大流量又不會超出資料庫限制
-            db_pool = psycopg2.pool.ThreadedConnectionPool(1, 15, DATABASE_URL, sslmode='require')
+            db_pool = psycopg2.pool.ThreadedConnectionPool(1, 15, DATABASE_URL, sslmode=os.environ.get("DB_SSLMODE", "prefer"))
             print("✅ 資料庫連線池建立成功")
         except Exception as e:
             print(f"❌ 連線池建立失敗: {e}")

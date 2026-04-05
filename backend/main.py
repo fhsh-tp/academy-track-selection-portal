@@ -135,7 +135,7 @@ async def submit(data: dict):
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
 
-    success = send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
+    success = await send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
     
     if success:
         return {"status": "success", "message": "申請已送出，確認信已寄達"}
@@ -278,14 +278,14 @@ async def api_send_reminders(current_user: dict = Depends(get_current_user)):
             try:
                 # 呼叫 mailer.py 的寄信函式 (確保參數對齊)
                 # 提醒信不需要 PDF，pdf_bytes 傳入空的 bytes (b"")
-                success = send_confirmation_email(
+                success = await send_confirmation_email(
                     recipient=user['email'],
                     student_name=user['name'],
                     student_id=user['student_id'],
                     student_class_num=user['student_class_num'] or "未設定",
                     choice_text="系统提醒：您尚未完成志願選填",
                     submit_time="--- (手動提醒) ---",
-                    pdf_bytes=b"" 
+                    pdf_bytes=b""
                 )
                 
                 if success:
