@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-academy}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - inner
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    networks:
+      - inner
+      - outter
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/academy}
+      DB_SSLMODE: ${DB_SSLMODE:-prefer}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin_password_you_know_it}
+      DEADLINE_DATE: ${DEADLINE_DATE:-2026-05-04 23:59:59+0800}
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-復興高中系統通知}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    networks:
+      - outter
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-}
+    depends_on:
+      - backend
+
+  dbgate:
+    image: dbgate/dbgate
+    restart: unless-stopped
+    profiles:
+      - dbgate
+    volumes:
+      - dbgate_data:/root/.dbgate
+    networks:
+      - inner
+      - lan
+    environment:
+      - CONNECTIONS=con1
+
+      - LABEL_con1=PostgreSQL
+      - SERVER_con1=${DB_HOST:-db}
+      - USER_con1=${POSTGRES_USER:-user}
+      - PASSWORD_con1=${POSTGRES_PASSWORD:-password}
+      - PORT_con1=${DB_PORT:-5432}
+      - ENGINE_con1=postgres@dbgate-plugin-postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    networks:
+      - outter
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+      TUNNEL_TRANSPORT_PROTOCOL: ${TUNNEL_TRANSPORT_PROTOCOL:-auto}
+    command: tunnel run
+    depends_on:
+      - nginx
+
+networks:
+  inner:
+    internal: true
+  lan:
+  outter:
+
+
+volumes:
+  pgdata:
+  dbgate_data:

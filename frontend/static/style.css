@@ -1,0 +1,153 @@
+/* 基本重設 */
+* {
+    box-sizing: border-box;
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+}
+
+body {
+    background-color: #f0f2f5;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    background: #ffffff;
+    width: 90%;
+    max-width: 450px;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.container.wide {
+    max-width: 900px;
+}
+
+h1, h2 {
+    text-align: center;
+    color: #1a73e8;
+}
+
+/* 登入與輸入框 */
+.input-field {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+/* 按鈕設計 */
+.btn-primary {
+    width: 100%;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #1557b0;
+}
+
+.btn-primary:disabled {
+    background-color: #ccc;
+}
+
+/* 需求 2: 選項方塊設計 */
+.options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.choice-box {
+    border: 2px solid #e0e0e0;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    background: #fafafa;
+    text-align: center;
+}
+
+.choice-box h3 {
+    margin: 0;
+    color: #555;
+}
+
+/* 需求 2: 按下去邊框變色 (Active 狀態) */
+.choice-box.active {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+    transform: scale(1.02);
+}
+
+.choice-box.active h3 {
+    color: #1a73e8;
+}
+
+/* 提示訊息盒 */
+.info-box {
+    background-color: #fff4e5;
+    border-left: 5px solid #ffa000;
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* 表格設計 (管理員頁面) */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #eee;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+tr:hover {
+    background-color: #fcfcfc;
+}
+
+/* 右上角小按鈕樣式 */
+.admin-btn-small {
+    position: fixed !important;  /* 強制優先 */
+    top: 15px !important;
+    right: 15px !important;
+    z-index: 9999 !important;    /* 強制浮在最上層 */
+    
+    /* 其餘樣式... */
+    padding: 5px 10px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+}
+
+.admin-btn-small:hover {
+    opacity: 1;
+    background-color: #333;
+}

@@ -1,0 +1,105 @@
+"""
+Email Service
+
+提供 Email 發送功能，支援 Google Mail SMTP。
+使用 aiosmtplib 進行非同步發送。
+"""
+
+import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Optional
+from pydantic import BaseModel, Field
+
+import aiosmtplib
+
+logger = logging.getLogger(__name__)
+
+class MailSetting(BaseModel):
+    host: str = Field(..., alias="smtp_host")
+    port: int = Field(587, alias="smtp_port")
+    user: str = Field(..., alias="smtp_user")
+    password: str = Field(..., alias="smtp_passowrd")
+    from_name: str = Field("復興高中系統通知", alias="smtp_from_name")
+    use_tls: bool = Field(True, alias="smtp_use_tls")
+
+class EmailService:
+    """
+    Email 發送服務
+    
+    使用方式:
+    ```python
+    email_service = EmailService(host, user, password, from_name)
+    await email_service.send_email(
+        to="user@example.com",
+        subject="測試郵件",
+        html_content="<h1>Hello</h1>"
+    )
+    ```
+    """
+    
+    def __init__(self, **settings: str | int | bool):
+        self.settings = MailSetting(**settings)
+
+    async def send_email(
+        self,
+        to: str,
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+    ) -> bool:
+        """
+        發送 Email
+        
+        Args:
+            to: 收件者 email
+            subject: 郵件主旨
+            html_content: HTML 內容
+            text_content: 純文字內容（可選，若無則自動從 HTML 提取）
+        
+        Returns:
+            bool: 發送是否成功
+        """
+        current_settings = self.settings.model_copy()
+        
+        # 建立郵件
+        message = MIMEMultipart("alternative")
+        message["Subject"] = subject
+        message["From"] = current_settings.from_email
+        message["To"] = to
+        
+        # 加入純文字和 HTML 內容
+        if text_content:
+            message.attach(MIMEText(text_content, "plain", "utf-8"))
+        message.attach(MIMEText(html_content, "html", "utf-8"))
+        
+        try:
+            # 連接 SMTP 伺服器並發送
+            await aiosmtplib.send(
+                message,
+                hostname=current_settings.host,
+                port=current_settings.port,
+                username=current_settings.user,
+                password=current_settings.password,
+                start_tls=current_settings.use_tls,
+            )
+            logger.info(f"Email 發送成功: {to}")
+            return True
+            
+        except aiosmtplib.SMTPException as e:
+            logger.error(f"Email 發送失敗: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Email 發送錯誤: {e}")
+            return False
+
+# 全域 Email Service 實例
+_email_service: Optional[EmailService] = None
+
+
+def get_email_service(**settings) -> EmailService:
+    """取得 Email Service 實例（單例模式）"""
+    global _email_service
+    if _email_service is None:
+        _email_service = EmailService(**settings)
+    return _email_service
