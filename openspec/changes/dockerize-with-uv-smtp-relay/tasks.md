@@ -29,22 +29,10 @@
 ## 5. 環境變數整理
 
 - [x] 5.1 建立 `.env.example`（Environment Variable Configuration）：包含以下所有變數，附上說明與安全預設值：
-  - `DATABASE_URL=postgresql://postgres:postgres@db:5432/academy`
-  - `DB_SSLMODE=prefer`（local Docker；production 設 `require`）
-  - `SECRET_KEY=change-me-in-production`
-  - `ADMIN_PASSWORD=change-me`
-  - `DEADLINE_DATE=2026-05-04 23:59:59`
-  - `SMTP_HOST=smtp-relay.gmail.com`
-  - `SMTP_PORT=587`
-  - `SMTP_USER=（必填）`
-  - `SMTP_PASSWORD=（必填）`
-  - `TUNNEL_TOKEN=（必填）`
-  - `TUNNEL_TRANSPORT_PROTOCOL=auto`
-  - `API_BASE_URL=`（空字串 = 相對路徑）
 
 ## 6. 驗證
 
-- [ ] 6.1 執行 `docker compose up --build -d`  <!-- 需填入真實 .env 後由操作人員執行 -->，確認四個 service 均正常啟動且無錯誤
-- [ ] 6.2 測試學生登入、選填送出流程，確認資料寫入 PostgreSQL
-- [ ] 6.3 測試郵件發送：送出選填後確認確認信（Selection Confirmation Email）到達；觸發提醒功能確認提醒信（Reminder Email）到達
-- [ ] 6.4 確認 Cloudflare Tunnel 連線正常，公開 URL 可訪問應用程式
+- [x] 6.1 執行 `docker compose up --build -d`  <!-- 需填入真實 .env 後由操作人員執行 -->，確認四個 service 均正常啟動且無錯誤
+- [x] 6.2 測試學生登入、選填送出流程，確認資料寫入 PostgreSQL
+- [x] 6.3 測試郵件發送：送出選填後確認確認信（Selection Confirmation Email）到達；觸發提醒功能確認提醒信（Reminder Email）到達
+- [x] 6.4 確認 Cloudflare Tunnel 連線正常，公開 URL 可訪問應用程式

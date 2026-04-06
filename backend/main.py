@@ -4,7 +4,7 @@ import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -43,17 +43,49 @@ async def lifespan(app: FastAPI):
     yield
     print("🛑 系統關閉中...")
 
+# 設定 origin
+origins = []
+prod_domain = os.getenv("PROD_DOMAIN")
+mode = os.getenv("FASTAPI_APP_ENVIRONMENT") or "dev"
+
+if prod_domain:
+    origins.append(prod_domain)
+if mode != "prod":
+    origins.append("localhost")
+    origins.append("localhost:8000")
+    origins.append("*.orb.local")
+
 app = FastAPI(lifespan=lifespan, dependencies=[Depends(is_deadline)])
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["*"])
 
 # Binding static directory
 app.mount("/static", StaticFiles(directory=Path('backend/static')), name="static")
 
 # --- 模型 ---
-class LoginData(BaseModel): student_id: str; password: str
-class SelectionData(BaseModel): choice: int
+class LoginData(BaseModel): 
+    student_id: str
+    password: str
+
+class SelectionData(BaseModel):
+    choice: int
 
 # --- API 路由 ---
+@app.get("/auth")
+async def nginx_auth_middleware(user=Depends(get_current_user)):
+    response = Response(200)
+    response.headers['X-User-ID'] = user.get("student_id")
+    response.headers['X-User-Role'] = user.get("role")
+    return response
+
+@app.get('/admin-auth')
+async def nginx_admin_auth_middleware(user=Depends(get_current_user)):
+    if user.get('role') == 'admin':
+        response = Response(200)
+        response.headers['X-User-ID'] = user.get("student_id")
+        response.headers['X-User-Role'] = user.get("role")
+        return response
+    raise HTTPException(401, detail="Unauthorized")
+
 @app.post("/login")
 async def login(data: LoginData):
     def db_logic():
@@ -62,7 +94,8 @@ async def login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     user = await asyncio.to_thread(db_logic)
     if not user or not verify_password(data.password, user['password']): 
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
@@ -84,18 +117,26 @@ async def admin_login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     user = await asyncio.to_thread(db_logic)
-    if not user or user.get('role') != 'admin': raise HTTPException(status_code=403, detail="權限不足")
-    if not verify_password(data.password, user['password']): raise HTTPException(status_code=401, detail="密碼錯誤")
+    if not user or user.get('role') != 'admin': 
+        raise HTTPException(status_code=403, detail="權限不足")
+    if not verify_password(data.password, user['password']): 
+        raise HTTPException(status_code=401, detail="帳號密碼錯誤")
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
 @app.post("/submit")
-async def submit(data: dict):
+async def submit(data: dict, user=Depends(get_current_user)):
     # 1. 取得資料
-    name = data.get("name")
     student_id = data.get("student_id")
+    
+    # 增加 token 與 student_id 之間，確認身分
+    if user.get("student_id") != student_id:
+        raise HTTPException(403, detail="被禁止的操作")
+    
+    name = data.get("name")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
@@ -146,7 +187,8 @@ async def submit(data: dict):
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
+    if current_user.get("role") != "admin": 
+        raise HTTPException(status_code=403, detail="權限不足")
     def db_logic():
         conn = get_db()
         try:
@@ -164,11 +206,14 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
                 WHERE u.role = 'student'
             """)
             return cur.fetchall()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     return await asyncio.to_thread(db_logic)
 
 @app.post("/admin/import-students")
-async def import_students(file: UploadFile = File(...)):
+async def import_students(file: UploadFile = File(...), user=Depends(get_current_user)):
+    if user.get("role") != 'admin':
+        raise HTTPException(403, detail="沒有權限操作")
     content = await file.read()
     conn = get_db()
     try:
@@ -222,11 +267,13 @@ async def import_students(file: UploadFile = File(...)):
         return {"status": "success", "message": f"成功匯入 {success_count} 筆學生資料"}
 
     except Exception as e:
-        if conn: conn.rollback()
+        if conn: 
+            conn.rollback()
         print(f"❌ 匯入失敗: {str(e)}", flush=True)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        if conn: release_db(conn)
+        if conn: 
+            release_db(conn)
 # --- main.py 新增路由 ---
 
 @app.post("/admin/send-reminders")
