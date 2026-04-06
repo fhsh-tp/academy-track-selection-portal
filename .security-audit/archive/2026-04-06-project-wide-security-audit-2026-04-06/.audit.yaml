@@ -1,0 +1,12 @@
+name: project-wide-security-audit-2026-04-06
+created: '2026-04-06'
+created_by: phoenix
+status: archived
+target: /Users/phoenix/dev/fhsh-projects/academy-track-selection-portal
+methodology:
+- OWASP Code Review Guide v2
+- OWASP WSTG v4.2
+- pip-audit locked dependency scan
+scope_hash: null
+archived_at: '2026-04-06'
+archived_by: phoenix

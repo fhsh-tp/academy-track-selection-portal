@@ -2,16 +2,15 @@ import os
 import asyncio
 import psycopg2
 import psycopg2.extras
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import csv
 import io
+from pathlib import Path
 
 # 導入自訂模組
 from backend.mailer import send_confirmation_email, generate_formal_pdf
@@ -21,16 +20,18 @@ from backend.security import verify_password, create_access_token, get_current_u
 # --- 路徑設定 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-font_path = os.path.join(ROOT_DIR, "frontend", "TW-Kai-98_1.ttf")
+font_path = os.path.join(BASE_DIR, "static", "TW-Kai-98_1.ttf")
 
 # --- 系統設定 ---
 DEADLINE = os.environ.get("DEADLINE_DATE")
-try:
-    deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S")
-except:
-    deadline_dt = datetime(2026, 5, 4, 23, 59, 59)
 
-scheduler = AsyncIOScheduler()
+def is_deadline():
+    now = datetime.now(timezone(timedelta(hours=8)))
+    deadline_dt = datetime.strptime(DEADLINE, "%Y-%m-%d %H:%M:%S%z")
+
+    if now > deadline_dt:
+        raise HTTPException(404, {"message": "shutdown..."})
+
 CHOICE_MAP = {1: "(文法商數A)", 2: "(文法商數B)", 3: "理工資", 4: "生醫農"}
 
 # --- 生命周期管理 ---
@@ -39,19 +40,52 @@ async def lifespan(app: FastAPI):
     print("🚀 系統啟動中...")
     init_db_pool()
     init_db()
-    scheduler.start()
     yield
     print("🛑 系統關閉中...")
-    if scheduler.running: scheduler.shutdown()
 
-app = FastAPI(lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# 設定 origin
+origins = []
+prod_domain = os.getenv("PROD_DOMAIN")
+mode = os.getenv("FASTAPI_APP_ENVIRONMENT") or "dev"
+
+if prod_domain:
+    origins.append(prod_domain)
+if mode != "prod":
+    origins.append("localhost")
+    origins.append("localhost:8000")
+    origins.append("*.orb.local")
+
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(is_deadline)])
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["*"])
+
+# Binding static directory
+app.mount("/static", StaticFiles(directory=Path('backend/static')), name="static")
 
 # --- 模型 ---
-class LoginData(BaseModel): student_id: str; password: str
-class SelectionData(BaseModel): choice: int
+class LoginData(BaseModel): 
+    student_id: str
+    password: str
+
+class SelectionData(BaseModel):
+    choice: int
 
 # --- API 路由 ---
+@app.get("/auth")
+async def nginx_auth_middleware(user=Depends(get_current_user)):
+    response = Response(200)
+    response.headers['X-User-ID'] = user.get("student_id")
+    response.headers['X-User-Role'] = user.get("role")
+    return response
+
+@app.get('/admin-auth')
+async def nginx_admin_auth_middleware(user=Depends(get_current_user)):
+    if user.get('role') == 'admin':
+        response = Response(200)
+        response.headers['X-User-ID'] = user.get("student_id")
+        response.headers['X-User-Role'] = user.get("role")
+        return response
+    raise HTTPException(401, detail="Unauthorized")
+
 @app.post("/login")
 async def login(data: LoginData):
     def db_logic():
@@ -60,7 +94,8 @@ async def login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     user = await asyncio.to_thread(db_logic)
     if not user or not verify_password(data.password, user['password']): 
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤")
@@ -82,18 +117,26 @@ async def admin_login(data: LoginData):
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT * FROM users WHERE student_id = %s", (data.student_id,))
             return cur.fetchone()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     user = await asyncio.to_thread(db_logic)
-    if not user or user.get('role') != 'admin': raise HTTPException(status_code=403, detail="權限不足")
-    if not verify_password(data.password, user['password']): raise HTTPException(status_code=401, detail="密碼錯誤")
+    if not user or user.get('role') != 'admin': 
+        raise HTTPException(status_code=403, detail="權限不足")
+    if not verify_password(data.password, user['password']): 
+        raise HTTPException(status_code=401, detail="帳號密碼錯誤")
     token = create_access_token(data={"sub": user['student_id'], "role": user['role']})
     return {"access_token": token, "role": user['role']}
 
 @app.post("/submit")
-async def submit(data: dict):
+async def submit(data: dict, user=Depends(get_current_user)):
     # 1. 取得資料
-    name = data.get("name")
     student_id = data.get("student_id")
+    
+    # 增加 token 與 student_id 之間，確認身分
+    if user.get("student_id") != student_id:
+        raise HTTPException(403, detail="被禁止的操作")
+    
+    name = data.get("name")
     email = data.get("email")
     choice_num = data.get("choice")
     submit_time = data.get("submit_time")
@@ -135,7 +178,7 @@ async def submit(data: dict):
     if not pdf_bytes:
         return {"status": "error", "message": "PDF 生成失敗"}
 
-    success = send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
+    success = await send_confirmation_email(email, name, student_id, student_class_num, choice_text, submit_time, pdf_bytes)
     
     if success:
         return {"status": "success", "message": "申請已送出，確認信已寄達"}
@@ -144,7 +187,8 @@ async def submit(data: dict):
 
 @app.get("/admin/all")
 async def get_all_students(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin": raise HTTPException(status_code=403, detail="權限不足")
+    if current_user.get("role") != "admin": 
+        raise HTTPException(status_code=403, detail="權限不足")
     def db_logic():
         conn = get_db()
         try:
@@ -162,11 +206,14 @@ async def get_all_students(current_user: dict = Depends(get_current_user)):
                 WHERE u.role = 'student'
             """)
             return cur.fetchall()
-        finally: release_db(conn)
+        finally: 
+            release_db(conn)
     return await asyncio.to_thread(db_logic)
 
 @app.post("/admin/import-students")
-async def import_students(file: UploadFile = File(...)):
+async def import_students(file: UploadFile = File(...), user=Depends(get_current_user)):
+    if user.get("role") != 'admin':
+        raise HTTPException(403, detail="沒有權限操作")
     content = await file.read()
     conn = get_db()
     try:
@@ -220,11 +267,13 @@ async def import_students(file: UploadFile = File(...)):
         return {"status": "success", "message": f"成功匯入 {success_count} 筆學生資料"}
 
     except Exception as e:
-        if conn: conn.rollback()
+        if conn: 
+            conn.rollback()
         print(f"❌ 匯入失敗: {str(e)}", flush=True)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        if conn: release_db(conn)
+        if conn: 
+            release_db(conn)
 # --- main.py 新增路由 ---
 
 @app.post("/admin/send-reminders")
@@ -278,14 +327,14 @@ async def api_send_reminders(current_user: dict = Depends(get_current_user)):
             try:
                 # 呼叫 mailer.py 的寄信函式 (確保參數對齊)
                 # 提醒信不需要 PDF，pdf_bytes 傳入空的 bytes (b"")
-                success = send_confirmation_email(
+                success = await send_confirmation_email(
                     recipient=user['email'],
                     student_name=user['name'],
                     student_id=user['student_id'],
                     student_class_num=user['student_class_num'] or "未設定",
                     choice_text="系统提醒：您尚未完成志願選填",
                     submit_time="--- (手動提醒) ---",
-                    pdf_bytes=b"" 
+                    pdf_bytes=b""
                 )
                 
                 if success:
@@ -322,14 +371,3 @@ async def api_send_reminders(current_user: dict = Depends(get_current_user)):
         if conn:
             release_db(conn)
             print("🔌 資料庫連線已釋放")
-@app.api_route("/", methods=["GET", "HEAD"], response_class=FileResponse)
-async def read_index(): return os.path.join(ROOT_DIR, "frontend", "index.html")
-@app.get("/login", response_class=FileResponse)
-async def read_login(): return os.path.join(ROOT_DIR, "frontend", "login.html")
-@app.get("/choose", response_class=FileResponse)
-async def read_choose(): return os.path.join(ROOT_DIR, "frontend", "choose.html")
-@app.get("/admin", response_class=FileResponse)
-async def read_admin(): return os.path.join(ROOT_DIR, "frontend", "admin.html")
-@app.get("/admin-login", response_class=FileResponse)
-async def read_admin_login(): return os.path.join(ROOT_DIR, "frontend", "admin-login.html")
-app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "frontend")), name="static")
