@@ -8,6 +8,12 @@
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 [![License](https://img.shields.io/badge/License-ECL--2.0-green)](./LICENSE)
 
+> [!NOTE]
+> 
+> 本專案係由 114 學年高一同學 陳柏霖、羅文婷、李承勳、邱筱涵 以 AI 輔助共同開發
+> 
+> 由指導教師 陳晉 進行指導、審核、安全稽核。
+
 ---
 
 ## 目錄
