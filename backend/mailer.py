@@ -9,13 +9,15 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+from backend.utils import email_sender
 
 # --- 1. 字型註冊 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-FONT_PATH = os.path.join(ROOT_DIR, "frontend", "TW-Kai-98_1.ttf")
-FONT_EXTB = os.path.join(ROOT_DIR, "frontend", "TW-Kai-Ext-B-98_1.ttf")
+FONT_PATH = os.path.join(BASE_DIR, "static", "TW-Kai-98_1.ttf")
+FONT_EXTB = os.path.join(BASE_DIR, "static", "TW-Kai-Ext-B-98_1.ttf")
 
 def register_fonts():
     try:
@@ -72,7 +74,7 @@ def generate_formal_pdf(student_name, student_id, student_class_num, choice_num,
     elif choice_num == 3: v3 = "V"
     elif choice_num == 4: v4 = "V"
 
-    print_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+    print_time = datetime.now(timezone(timedelta(hours=8))).strftime('%Y/%m/%d %H:%M:%S')
     choice_table_data = [
         ["班群","文法商(數A課程路徑)", "文法商(數B課程路徑)", "理工資班群", "生醫農班群"],
         ["勾選", v1, v2, v3, v4],
@@ -133,13 +135,9 @@ async def send_confirmation_email(recipient, student_name, student_id, student_c
 
         is_reminder = not (pdf_bytes and len(pdf_bytes) > 0)
 
-        msg = EmailMessage()
-        msg["From"] = f"復興高中選填系統 <{smtp_user}>"
-        msg["To"] = recipient
-
         if is_reminder:
-            msg["Subject"] = "【重要通知】您的類組尚未選填"
-            msg.set_content(
+            subject = "【重要通知】您的類組尚未選填"
+            text_content = (
                 f"你好 {student_name}\n"
                 f"您的類組尚未選填。\n"
                 f"班級座號：{student_class_num}\n"
@@ -147,8 +145,8 @@ async def send_confirmation_email(recipient, student_name, student_id, student_c
                 f"選填結果：尚未完成填寫。"
             )
         else:
-            msg["Subject"] = f"【重要確認信】{student_name} 的選填結果"
-            msg.set_content(
+            subject = f"【重要確認信】{student_name} 的選填結果"
+            text_content = (
                 f"你好 {student_name}，你的志願已送出。\n\n"
                 f"班級座號：{student_class_num}\n"
                 f"學號：{student_id}\n"
@@ -158,22 +156,28 @@ async def send_confirmation_email(recipient, student_name, student_id, student_c
                 "請列印附件「選擇班群表」，經學生、家長與導師簽名，5月4日(一)前交給學藝股長。\n"
                 "【家中無印表機者歡迎至註冊組借電腦列印】"
             )
-            msg.add_attachment(
-                pdf_bytes,
-                maintype="application",
-                subtype="pdf",
-                filename=f"{student_id}_確認書.pdf"
-            )
+        
+        html_content = text_content.replace("\n", "<br>")
 
-        await aiosmtplib.send(
-            msg,
-            hostname=smtp_host,
-            port=smtp_port,
-            username=smtp_user,
-            password=smtp_password,
-            start_tls=True,
-        )
-        return True
+        if is_reminder:
+            # 寄送未選填提醒信 (無附件)
+            success = await email_sender.send_email(
+                to=recipient,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content
+            )
+            return success
+        else:
+            # 寄送選填確認信 (有附件，直接傳入檔名與 byte 資料的 Tuple)
+            success = await email_sender.send_email(
+                to=recipient,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content,
+                attachments=[(f"{student_id}_確認書.pdf", pdf_bytes)]
+            )
+            return success
 
     except Exception as e:
         print(f"❌ [MAILER] 執行異常: {str(e)}", flush=True)

@@ -10,7 +10,6 @@ def init_db_pool():
     global db_pool
     if db_pool is None:
         try:
-            # Render 免費版建議設 1-15 個連線，既能應付大流量又不會超出資料庫限制
             db_pool = psycopg2.pool.ThreadedConnectionPool(1, 15, DATABASE_URL, sslmode=os.environ.get("DB_SSLMODE", "prefer"))
             print("✅ 資料庫連線池建立成功")
         except Exception as e:
@@ -59,10 +58,11 @@ def init_db():
         """)
 
         # 3. 管理員邏輯
+        admin_un = os.getenv("ADMIN_USERNAME")
         admin_pw = os.getenv("ADMIN_PASSWORD")
         if admin_pw:
             hashed_pw = get_password_hash(admin_pw)
-            cur.execute("INSERT INTO users (student_id, name, password, role) VALUES ('admin', '管理員', %s, 'admin') ON CONFLICT DO NOTHING", (hashed_pw,))
+            cur.execute("INSERT INTO users (student_id, name, password, role) VALUES (%s, '管理員', %s, 'admin') ON CONFLICT DO NOTHING", (admin_un, hashed_pw,))
         
         conn.commit()
         cur.close()

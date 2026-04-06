@@ -1,23 +1,39 @@
-FROM python:3.12-slim
+FROM python:3.13-slim-trixie
 
+# Update system dependencies
+RUN apt-get update \
+    && apt-get install -y git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy the application into the container.
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY ./pyproject.toml .
+COPY ./uv.lock .
 
-# Copy dependency files first for layer caching
-COPY pyproject.toml uv.lock ./
+# Install the application dependencies.
+RUN uv sync --frozen --no-cache
 
-# Install dependencies (no dev extras, frozen lock)
-RUN uv sync --frozen --no-dev
+COPY ./backend ./backend
 
-# Copy application code
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
-COPY import_students.py ./
+# Reduce system loading
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-ENV PATH="/app/.venv/bin:$PATH"
+# ASGI settings
+ENV UVICORN_HOST=0.0.0.0
+ENV UVICORN_PORT=8000
 
-EXPOSE 8000
+## Uvicorn parameter `--forwarded-allow-ips` default value is point to $FOWARDED_ALLOW_IPS
+ENV FORWARDED_ALLOW_IPS=*
 
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "backend.main:app"]
+# Use entrypoint script to handle environment-based startup
+COPY ./scripts/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+EXPOSE ${UVICORN_PORT:-8000}
